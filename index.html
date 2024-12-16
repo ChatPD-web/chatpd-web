@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatPD</title>
+    <!-- <link rel="stylesheet" href="static/css/styles.css"> -->
+    <link rel="stylesheet" href="static/css/styles.css">
+    <script src="static/js/script.js"></script>
+
+</head>
+<body>
+    <div class="container">
+        <!-- 侧边栏 -->
+        <div class="sidebar">
+            <!-- 搜索关键词 -->
+            <div class="filter-container">
+                <h3>Search by Keywords</h3>
+                <form id="search-form">
+                    <input type="text" id="keywords" name="keywords" placeholder="Enter keywords/arXiv id">
+                    <input type="hidden" id="data_type" name="data_type" value="All">
+                    <input type="hidden" id="task" name="task" value="All">
+                    <button type="submit">Search</button>
+                </form>
+            </div>
+
+            <!-- Data Type 筛选栏 -->
+            <div class="filter-container" id="data-type-filter">
+                <h3>Filter by Data Type</h3>
+                <a href="#" data-type="All" class="filter-link active">All</a>
+                <!-- 动态填充 Data Types -->
+            </div>
+
+            <!-- Task 筛选栏 -->
+            <div class="filter-container" id="task-filter">
+                <h3>Filter by Task</h3>
+                <a href="#" data-task="All" class="filter-link active">All</a>
+                <!-- 动态填充 Tasks -->
+            </div>
+        </div>
+
+        <!-- 搜索结果 -->
+        <div class="results">
+            <h3 id="results-count">Search Results: 0 total items (0 items on this page)</h3>
+            <div id="results-list">
+                <p>No results found.</p>
+            </div>
+            <div class="pagination-container">
+                <div class="pagination">
+                    <button id="prev-page" disabled>&laquo; Previous</button>
+                    <select id="page-selector"></select>
+                    <button id="next-page" disabled>Next &raquo;</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
+

@@ -1,0 +1,190 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f9f9f9;
+    margin: 0;
+    padding: 20px;
+}
+
+.container {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.sidebar {
+    background: #fff;
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    overflow-y: auto;
+    max-height: calc(100vh - 40px);
+}
+
+.sidebar h3 {
+    margin-top: 0;
+    font-size: 18px;
+    color: #333;
+}
+
+.filter-section {
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #ddd;
+}
+
+.sidebar a {
+    text-decoration: none;
+    color: #007bff;
+    display: block;
+    margin: 5px 0;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sidebar a.active {
+    font-weight: bold;
+    color: #0056b3;
+}
+
+.results {
+    background: #fff;
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.results h3 {
+    margin-top: 0;
+    font-size: 18px;
+    color: #333;
+}
+
+.result-item {
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+}
+
+.result-item:last-child {
+    border-bottom: none;
+}
+
+.result-item h4 {
+    margin: 0;
+    font-size: 16px;
+    color: #007bff;
+}
+
+.result-item p {
+    margin: 5px 0;
+    font-size: 14px;
+    color: #555;
+}
+
+.pagination-container {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    margin-top: 20px;
+    width: 100%;
+}
+
+.pagination {
+    display: flex;
+    gap: 5px;
+}
+
+.pagination a,
+.pagination span,
+.pagination button {
+    text-decoration: none;
+    color: #007bff;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    display: inline-block;
+    text-align: center;
+    background: none;
+    cursor: pointer;
+}
+
+.pagination a.active,
+.pagination button.active {
+    font-weight: bold;
+    background-color: #007bff;
+    color: #fff;
+}
+
+.pagination span.ellipsis {
+    background: transparent;
+    border: none;
+    color: #555;
+    padding: 8px 12px;
+}
+
+.pagination a:hover,
+.pagination button:hover {
+    background-color: #e8f1ff;
+}
+
+.filter-container {
+    background: #fff;
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: inset 0 2px 8px rgba(207, 196, 196, 0.4);
+    margin-bottom: 20px;
+}
+
+.filter-container input[type="text"] {
+    box-sizing: border-box;
+    max-width: 100%;
+    font-size: 14px;
+}
+
+.filter-container button {
+    font-size: 14px;
+    max-width: 100%;
+    background-color: #007bff; /* 按钮背景颜色 */
+    color: #fff; /* 按钮文字颜色 */
+    padding: 10px 15px; /* 调整内边距让按钮更显眼 */
+    border: none; /* 移除默认边框 */
+    border-radius: 4px; /* 圆角让按钮更现代化 */
+    cursor: pointer; /* 鼠标悬停时显示为手势 */
+    transition: background-color 0.3s ease, transform 0.2s ease; /* 添加平滑过渡效果 */
+}
+
+.filter-container button:hover {
+    background-color: #0056b3; /* 悬停时的背景颜色 */
+    transform: scale(1.05); /* 悬停时按钮略微放大 */
+}
+
+.filter-container button:active {
+    background-color: #003f7f; /* 点击时的背景颜色 */
+    transform: scale(0.98); /* 点击时按钮略微缩小 */
+}
+
+
+.filter-container form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.filter-link {
+    cursor: pointer;
+}
+
+@media (max-width: 768px) {
+    .container {
+        grid-template-columns: 1fr;
+    }
+
+    .sidebar {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+}
