@@ -34,13 +34,17 @@ document.addEventListener('DOMContentLoaded', () => {
             });
     }
 
-    // 修正后的 Data Type 过滤器填充函数
+    // 修改 populateDataTypeFilter 函数
     function populateDataTypeFilter(dataTypes) {
+        // 首先清空现有的链接（除了 All）
+        const allLinks = dataTypeFilter.querySelectorAll('.filter-link:not([data-type="All"])');
+        allLinks.forEach(link => link.remove());
+
         dataTypes.forEach(item => {
             const link = document.createElement('a');
             link.href = '#';
             link.dataset.type = item.data_type;
-            link.textContent = `${item.data_type} (${item.count})`; // 使用反引号
+            link.textContent = `${item.data_type} (${item.count})`;
             link.classList.add('filter-link');
             if (item.data_type === selectedDataType) {
                 link.classList.add('active');
@@ -49,6 +53,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 e.preventDefault();
                 selectedDataType = item.data_type;
                 currentPage = 1;
+                // 特别处理 All 的情况
+                if (item.data_type === 'All') {
+                    selectedDataType = 'All';
+                    // 确保 UI 更新反映这个改变
+                    updateActiveFilter(dataTypeFilter, link);
+                }
                 updateActiveFilter(dataTypeFilter, link);
                 updateHiddenInputs();
                 fetchResults();
@@ -57,13 +67,17 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 修正后的 Task 过滤器填充函数
+    // 修改 populateTaskFilter 函数
     function populateTaskFilter(tasks) {
+        // 首先清空现有的链接（除了 All）
+        const allLinks = taskFilter.querySelectorAll('.filter-link:not([data-task="All"])');
+        allLinks.forEach(link => link.remove());
+
         tasks.forEach(item => {
             const link = document.createElement('a');
             link.href = '#';
             link.dataset.task = item.task;
-            link.textContent = `${item.task} (${item.count})`; // 使用反引号
+            link.textContent = `${item.task} (${item.count})`;
             link.classList.add('filter-link');
             if (item.task === selectedTask) {
                 link.classList.add('active');
@@ -72,6 +86,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 e.preventDefault();
                 selectedTask = item.task;
                 currentPage = 1;
+                // 特别处理 All 的情况
+                if (item.task === 'All') {
+                    selectedTask = 'All';
+                    // 确保 UI 更新反映这个改变
+                    updateActiveFilter(taskFilter, link);
+                }
                 updateActiveFilter(taskFilter, link);
                 updateHiddenInputs();
                 fetchResults();
@@ -80,12 +100,77 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // 添加对初始 "All" 链接的事件监听
+    function initializeAllLinks() {
+        // 为 Data Type 的 "All" 链接添加事件监听
+        const dataTypeAllLink = dataTypeFilter.querySelector('a[data-type="All"]');
+        if (dataTypeAllLink) {
+            dataTypeAllLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                selectedDataType = 'All';
+                currentPage = 1;
+                updateActiveFilter(dataTypeFilter, dataTypeAllLink);
+                updateHiddenInputs();
+                fetchResults();
+            });
+        }
 
-    // 更新活动过滤器样式
+        // 为 Task 的 "All" 链接添加事件监听
+        const taskAllLink = taskFilter.querySelector('a[data-task="All"]');
+        if (taskAllLink) {
+            taskAllLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                selectedTask = 'All';
+                currentPage = 1;
+                updateActiveFilter(taskFilter, taskAllLink);
+                updateHiddenInputs();
+                fetchResults();
+            });
+        }
+    }
+
+    // 修改 initializeFilters 函数
+    function initializeFilters() {
+        // 确保初始的 All 链接有正确的属性
+        const dataTypeAllLink = dataTypeFilter.querySelector('a[data-type="All"]');
+        if (dataTypeAllLink) {
+            dataTypeAllLink.dataset.type = 'All';
+        }
+        
+        const taskAllLink = taskFilter.querySelector('a[data-task="All"]');
+        if (taskAllLink) {
+            taskAllLink.dataset.task = 'All';
+        }
+
+        // 初始化 All 链接的事件监听
+        initializeAllLinks();
+
+        // 获取 Data Types 和 Tasks
+        fetch(`${server_address}:${server_port}/api/filters`)
+            .then(response => response.json())
+            .then(data => {
+                populateDataTypeFilter(data.top_data_types);
+                populateTaskFilter(data.top_tasks);
+                // 重新初始化 All 链接，以防它们被覆盖
+                initializeAllLinks();
+            })
+            .catch(error => {
+                console.error('Error fetching filters:', error);
+            });
+    }
+
+    // 修改 updateActiveFilter 函数
     function updateActiveFilter(container, activeLink) {
+        // 移除所有链接的 active 类
         const links = container.querySelectorAll('.filter-link');
-        links.forEach(link => link.classList.remove('active'));
-        activeLink.classList.add('active');
+        links.forEach(link => {
+            link.classList.remove('active');
+        });
+        
+        // 添加 active 类到被点击的链接
+        if (activeLink) {
+            activeLink.classList.add('active');
+        }
     }
 
     // 更新隐藏的输入字段
