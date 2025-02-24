@@ -188,3 +188,66 @@ body {
         overflow-y: auto;
     }
 }
+
+/* 新增导航栏样式 */
+.top-nav {
+    background-color: #333;
+    padding: 1rem;
+}
+
+.top-nav ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    gap: 2rem;
+}
+
+.top-nav a {
+    color: white;
+    text-decoration: none;
+    font-size: 1.1rem;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+}
+
+.top-nav a:hover {
+    background-color: #555;
+}
+
+/* 调整原有容器位置 */
+.container {
+    margin-top: 20px; /* 给导航栏留出空间 */
+}
+
+/* 数据集页面样式 */
+.dataset-list {
+    display: grid;
+    gap: 1.5rem;
+    padding: 20px;
+}
+
+.dataset-card {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: transform 0.2s;
+}
+
+.dataset-card:hover {
+    transform: translateY(-3px);
+}
+
+.dataset-card h3 {
+    color: #2c3e50;
+    margin-bottom: 0.5rem;
+}
+
+.dataset-meta {
+    margin-top: 1rem;
+    display: flex;
+    gap: 1rem;
+    color: #7f8c8d;
+    font-size: 0.9em;
+}
