@@ -221,10 +221,39 @@ body {
 }
 
 /* 数据集页面样式 */
+.datasets-container {
+    display: block !important;
+    padding: 20px;
+}
+
+.datasets-container h1 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: #2c3e50;
+}
+
+.datasets-container .description {
+    color: #666;
+    margin-bottom: 2rem;
+}
+
+.dataset-search {
+    margin-bottom: 2rem;
+}
+
+.dataset-search input {
+    width: 100%;
+    padding: 10px 15px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
 .dataset-list {
     display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 1.5rem;
-    padding: 20px;
 }
 
 .dataset-card {
@@ -232,22 +261,239 @@ body {
     border-radius: 8px;
     padding: 1.5rem;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    transition: transform 0.2s;
+    transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .dataset-card:hover {
     transform: translateY(-3px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
 
 .dataset-card h3 {
     color: #2c3e50;
+    margin-top: 0;
     margin-bottom: 0.5rem;
+}
+
+.dataset-card h3 a {
+    color: #2c3e50;
+    text-decoration: none;
+}
+
+.dataset-card h3 a:hover {
+    color: #3498db;
+    text-decoration: underline;
 }
 
 .dataset-meta {
     margin-top: 1rem;
     display: flex;
     gap: 1rem;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.loading, .error, .no-results {
+    grid-column: 1 / -1;
+    padding: 2rem;
+    text-align: center;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.error {
+    color: #e74c3c;
+}
+
+.no-results {
     color: #7f8c8d;
-    font-size: 0.9em;
+}
+
+/* 数据集详情页样式 */
+.dataset-detail-container {
+    display: block !important;
+    padding: 20px;
+}
+
+.dataset-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #eee;
+}
+
+.dataset-header h1 {
+    margin: 0;
+    color: #2c3e50;
+}
+
+.dataset-link {
+    display: inline-block;
+    padding: 8px 16px;
+    background-color: #3498db;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    font-weight: bold;
+    transition: background-color 0.2s;
+}
+
+.dataset-link:hover {
+    background-color: #2980b9;
+}
+
+.dataset-info {
+    margin-bottom: 3rem;
+}
+
+.info-section {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 2rem;
+}
+
+.info-section h2 {
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    color: #2c3e50;
+    border-bottom: 2px solid #f1f1f1;
+    padding-bottom: 0.5rem;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    gap: 1.5rem;
+}
+
+.info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.info-item .label {
+    font-weight: bold;
+    color: #7f8c8d;
+}
+
+.info-item .value {
+    color: #2c3e50;
+}
+
+.info-item .value a {
+    color: #3498db;
+    text-decoration: none;
+}
+
+.info-item .value a:hover {
+    text-decoration: underline;
+}
+
+.citation-box {
+    background-color: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 4px;
+    border-left: 4px solid #3498db;
+    font-family: monospace;
+    white-space: pre-wrap;
+    overflow-x: auto;
+    color: #2c3e50;
+}
+
+.dataset-usage {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.dataset-usage h2 {
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    color: #2c3e50;
+    border-bottom: 2px solid #f1f1f1;
+    padding-bottom: 0.5rem;
+}
+
+.search-filter {
+    margin-bottom: 1.5rem;
+}
+
+.search-filter input {
+    width: 100%;
+    padding: 10px 15px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.paper-list {
+    display: grid;
+    gap: 1.5rem;
+}
+
+.paper-card {
+    border: 1px solid #eee;
+    border-radius: 8px;
+    padding: 1.5rem;
+    transition: box-shadow 0.2s;
+}
+
+.paper-card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.paper-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+    gap: 1rem;
+}
+
+.paper-header h3 {
+    margin: 0;
+    color: #2c3e50;
+    font-size: 1.2rem;
+}
+
+.arxiv-link {
+    color: white;
+    background-color: #e74c3c;
+    padding: 4px 8px;
+    border-radius: 4px;
+    text-decoration: none;
+    font-size: 0.8rem;
+    white-space: nowrap;
+}
+
+.arxiv-link:hover {
+    background-color: #c0392b;
+}
+
+.paper-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.meta-item {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.meta-item .label {
+    color: #7f8c8d;
+}
+
+.meta-item .value {
+    color: #2c3e50;
+    font-weight: bold;
 }

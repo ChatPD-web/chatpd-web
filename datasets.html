@@ -14,21 +14,82 @@
         </ul>
     </nav>
 
-    <div class="container">
-        <h1>Available Datasets</h1>
+    <div class="container datasets-container">
+        <h1>Dataset Collections</h1>
+        <p class="description">Browse through all available datasets and explore their usage records.</p>
+        
+        <!-- 数据集搜索 -->
+        <div class="dataset-search">
+            <input type="text" id="dataset-search-input" placeholder="Search datasets...">
+        </div>
         
         <!-- 数据集列表 -->
-        <div class="dataset-list">
-            <div class="dataset-card">
-                <h3>ChatPD_WebData.json</h3>
-                <p>包含网页搜索数据的结构化JSON数据集</p>
-            </div>
-
-            <div class="dataset-card">
-                <h3>Paper_Dataset_G.graphml</h3>
-                <p>学术论文关系图谱数据（GraphML格式）</p>
-            </div>
+        <div class="dataset-list" id="dataset-list">
+            <div class="loading">Loading datasets...</div>
         </div>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const datasetList = document.getElementById('dataset-list');
+            const searchInput = document.getElementById('dataset-search-input');
+            let allDatasets = [];
+
+            // 获取所有数据集
+            fetch('/api/datasets')
+                .then(response => response.json())
+                .then(data => {
+                    allDatasets = data.datasets;
+                    displayDatasets(allDatasets);
+                })
+                .catch(error => {
+                    console.error('Error fetching datasets:', error);
+                    datasetList.innerHTML = '<div class="error">Failed to load datasets. Please try again later.</div>';
+                });
+
+            // 搜索功能
+            searchInput.addEventListener('input', () => {
+                const searchTerm = searchInput.value.toLowerCase().trim();
+                if (searchTerm === '') {
+                    displayDatasets(allDatasets);
+                } else {
+                    const filteredDatasets = allDatasets.filter(dataset => 
+                        dataset.dataset_entity && dataset.dataset_entity.toLowerCase().includes(searchTerm)
+                    );
+                    displayDatasets(filteredDatasets);
+                }
+            });
+
+            // 显示数据集列表
+            function displayDatasets(datasets) {
+                if (!datasets || datasets.length === 0) {
+                    datasetList.innerHTML = '<div class="no-results">No datasets found.</div>';
+                    return;
+                }
+
+                datasetList.innerHTML = '';
+                datasets.forEach(dataset => {
+                    if (!dataset.dataset_entity) return;
+                    
+                    const card = document.createElement('div');
+                    card.className = 'dataset-card';
+                    
+                    // 使用encodeURIComponent确保URL中的特殊字符被正确处理
+                    const datasetUrl = `/dataset/${encodeURIComponent(dataset.dataset_entity)}`;
+                    
+                    card.innerHTML = `
+                        <h3>
+                            <a href="${datasetUrl}">${dataset.dataset_entity}</a>
+                        </h3>
+                        <div class="dataset-meta">
+                            <span class="usage-count">Used in ${dataset.usage_count} paper(s)</span>
+                        </div>
+                    `;
+                    
+                    datasetList.appendChild(card);
+                });
+            }
+        });
+    </script>
 </body>
 </html>

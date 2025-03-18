@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatPD - {{ dataset.dataset_entity }}</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <nav class="top-nav">
+        <ul>
+            <li><a href="/">Home</a></li>
+            <li><a href="/datasets">Datasets</a></li>
+        </ul>
+    </nav>
+
+    <div class="container dataset-detail-container">
+        <div class="dataset-header">
+            <h1>{{ dataset.dataset_entity }}</h1>
+            {% if dataset.homepage %}
+            <a href="{{ dataset.homepage }}" target="_blank" class="dataset-link">Official Homepage</a>
+            {% endif %}
+        </div>
+
+        <div class="dataset-info">
+            <div class="info-section">
+                <h2>Dataset Information</h2>
+                <div class="info-grid">
+                    {% if dataset.dataset_summary %}
+                    <div class="info-item">
+                        <div class="label">Summary:</div>
+                        <div class="value">{{ dataset.dataset_summary }}</div>
+                    </div>
+                    {% endif %}
+
+                    {% if dataset.data_type %}
+                    <div class="info-item">
+                        <div class="label">Data Type:</div>
+                        <div class="value">{{ dataset.data_type }}</div>
+                    </div>
+                    {% endif %}
+
+                    {% if dataset.task %}
+                    <div class="info-item">
+                        <div class="label">Task:</div>
+                        <div class="value">{{ dataset.task }}</div>
+                    </div>
+                    {% endif %}
+
+                    {% if dataset.scale %}
+                    <div class="info-item">
+                        <div class="label">Scale:</div>
+                        <div class="value">{{ dataset.scale }}</div>
+                    </div>
+                    {% endif %}
+
+                    {% if dataset.dataset_provider %}
+                    <div class="info-item">
+                        <div class="label">Provider:</div>
+                        <div class="value">{{ dataset.dataset_provider }}</div>
+                    </div>
+                    {% endif %}
+
+                    {% if dataset.dataset_url %}
+                    <div class="info-item">
+                        <div class="label">URL:</div>
+                        <div class="value">
+                            <a href="{{ dataset.dataset_url }}" target="_blank">{{ dataset.dataset_url }}</a>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if dataset.dataset_publicly_available %}
+                    <div class="info-item">
+                        <div class="label">Publicly Available:</div>
+                        <div class="value">{{ dataset.dataset_publicly_available }}</div>
+                    </div>
+                    {% endif %}
+
+                    {% if dataset.location %}
+                    <div class="info-item">
+                        <div class="label">Location:</div>
+                        <div class="value">{{ dataset.location }}</div>
+                    </div>
+                    {% endif %}
+
+                    {% if dataset.other_info %}
+                    <div class="info-item">
+                        <div class="label">Other Info:</div>
+                        <div class="value">{{ dataset.other_info }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if dataset.dataset_citation %}
+            <div class="info-section">
+                <h2>Citation</h2>
+                <div class="citation-box">
+                    {{ dataset.dataset_citation }}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="dataset-usage">
+            <h2>Usage Records ({{ records|length }})</h2>
+            
+            <div class="search-filter">
+                <input type="text" id="paper-search" placeholder="Search papers...">
+            </div>
+
+            <div class="paper-list" id="paper-list">
+                {% for record in records %}
+                <div class="paper-card" data-title="{{ record.title|lower }}">
+                    <div class="paper-header">
+                        <h3>{{ record.title }}</h3>
+                        {% if record.arxiv_id %}
+                        <a href="https://arxiv.org/abs/{{ record.arxiv_id }}" target="_blank" class="arxiv-link">
+                            arXiv:{{ record.arxiv_id }}
+                        </a>
+                        {% endif %}
+                    </div>
+                    <div class="paper-meta">
+                        <div class="meta-item">
+                            <span class="label">Task:</span>
+                            <span class="value">{{ record.task }}</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="label">Data Type:</span>
+                            <span class="value">{{ record.data_type }}</span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const paperSearch = document.getElementById('paper-search');
+            const paperCards = document.querySelectorAll('.paper-card');
+
+            paperSearch.addEventListener('input', () => {
+                const searchTerm = paperSearch.value.toLowerCase().trim();
+                
+                paperCards.forEach(card => {
+                    const title = card.dataset.title;
+                    if (searchTerm === '' || title.includes(searchTerm)) {
+                        card.style.display = 'block';
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html> 
