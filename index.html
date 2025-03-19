@@ -186,6 +186,34 @@
             </div>
         </div>
     </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Get base URL for API calls
+            const getBaseUrl = () => {
+                const path = window.location.pathname;
+                if (path.includes('/chatpd-web/')) {
+                    // GitHub Pages deployment
+                    return '/chatpd-web';
+                }
+                // Local development
+                return '';
+            };
+            
+            const baseUrl = getBaseUrl();
+            
+            // Update navigation links if needed
+            document.querySelectorAll('.top-nav a').forEach(link => {
+                if (link.getAttribute('href') === './') {
+                    link.setAttribute('href', baseUrl + '/' || './');
+                } else if (link.getAttribute('href') === 'datasets') {
+                    link.setAttribute('href', baseUrl + '/datasets');
+                }
+            });
+            
+            // Additional code for index.html functionality can be added here
+            
+        });
+    </script>
 </body>
 </html>
 

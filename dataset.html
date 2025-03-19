@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ChatPD - {{ dataset.dataset_entity }}</title>
-    <link rel="stylesheet" href="static/css/styles.css">
+    <link id="css-link" rel="stylesheet" href="static/css/styles.css">
     <style>
         .top-nav {
             background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
@@ -300,6 +300,39 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            // Get base URL for API calls
+            const getBaseUrl = () => {
+                const path = window.location.pathname;
+                if (path.includes('/chatpd-web/')) {
+                    // GitHub Pages deployment
+                    return '/chatpd-web';
+                }
+                // Local development
+                return '';
+            };
+            
+            const baseUrl = getBaseUrl();
+            
+            // Update stylesheet link
+            const cssLink = document.getElementById('css-link');
+            if (baseUrl) {
+                cssLink.href = `${baseUrl}/static/css/styles.css`;
+            } else {
+                // If we're in dataset subdirectory, we need to go up one level
+                if (window.location.pathname.includes('/dataset/')) {
+                    cssLink.href = '../static/css/styles.css';
+                }
+            }
+            
+            // Update navigation links if needed
+            document.querySelectorAll('.top-nav a').forEach(link => {
+                if (link.getAttribute('href') === './') {
+                    link.setAttribute('href', baseUrl + '/' || './');
+                } else if (link.getAttribute('href') === 'datasets') {
+                    link.setAttribute('href', baseUrl + '/datasets');
+                }
+            });
+
             const paperSearch = document.getElementById('paper-search');
             const paperCards = document.querySelectorAll('.paper-card');
 
