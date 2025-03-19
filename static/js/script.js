@@ -1,4 +1,9 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // API URL配置 - 本地开发使用相对路径，生产环境使用绝对URL
+    const apiUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+        ? '' 
+        : 'https://testweb.241814.xyz:5000';
+    
     const form = document.getElementById('search-form');
     const resultsList = document.getElementById('results-list');
     const resultsCount = document.getElementById('results-count');
@@ -34,7 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
         initializeAllLinks();
 
         // 获取 Data Types 和 Tasks
-        fetch(`/api/filters`)
+        fetch(`${apiUrl}/api/filters`)
             .then(response => response.json())
             .then(data => {
                 populateDataTypeFilter(data.top_data_types);
@@ -201,7 +206,7 @@ document.addEventListener('DOMContentLoaded', () => {
             page: currentPage
         });
 
-        fetch(`/api/search?${params.toString()}`)
+        fetch(`${apiUrl}/api/search?${params.toString()}`)
             .then(response => response.json())
             .then(data => {
                 displayResults(data.results);
@@ -236,7 +241,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // 构建 Dataset Entity
                 let datasetEntity = '';
                 if (result.dataset_entity) {
-                    datasetEntity = `<p><strong>Dataset:</strong> <a href="/dataset/${encodeURIComponent(result.dataset_entity)}">${result.dataset_entity}</a></p>`;
+                    datasetEntity = `<p><strong>Dataset:</strong> <a href="${apiUrl}/dataset/${encodeURIComponent(result.dataset_entity)}">${result.dataset_entity}</a></p>`;
                 }
 
                 // 构建 arXiv ID 和标题
