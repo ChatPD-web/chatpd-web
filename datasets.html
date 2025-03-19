@@ -5,12 +5,60 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ChatPD - Datasets</title>
     <link rel="stylesheet" href="static/css/styles.css">
+    <style>
+        .top-nav {
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            padding: 1rem 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .top-nav ul {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+        .top-nav a {
+            color: white;
+            text-decoration: none;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            transition: background-color 0.3s;
+        }
+        .top-nav a:hover {
+            background-color: rgba(255,255,255,0.1);
+        }
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 2rem;
+        }
+        .pagination button {
+            padding: 0.5rem 1rem;
+            border: none;
+            background: #4f46e5;
+            color: white;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .pagination button:disabled {
+            background: #cbd5e1;
+            cursor: not-allowed;
+        }
+        .pagination button:hover:not(:disabled) {
+            background: #4338ca;
+        }
+    </style>
 </head>
 <body>
     <nav class="top-nav">
         <ul>
             <li><a href="/">Home</a></li>
-            <li><a href="datasets">Datasets</a></li>
+            <li><a href="/datasets">Datasets</a></li>
         </ul>
     </nav>
 
@@ -27,31 +75,67 @@
         <div class="dataset-list" id="dataset-list">
             <div class="loading">Loading datasets...</div>
         </div>
+
+        <!-- 分页控件 -->
+        <div class="pagination" id="pagination">
+            <button id="prev-page" disabled>&laquo; Previous</button>
+            <button id="next-page" disabled>Next &raquo;</button>
+        </div>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const datasetList = document.getElementById('dataset-list');
             const searchInput = document.getElementById('dataset-search-input');
+            const prevButton = document.getElementById('prev-page');
+            const nextButton = document.getElementById('next-page');
+            let currentPage = 1;
+            let totalPages = 1;
             let allDatasets = [];
+            const perPage = 30;
 
-            // 获取所有数据集
-            fetch('/api/datasets')
-                .then(response => response.json())
-                .then(data => {
-                    allDatasets = data.datasets;
-                    displayDatasets(allDatasets);
-                })
-                .catch(error => {
-                    console.error('Error fetching datasets:', error);
-                    datasetList.innerHTML = '<div class="error">Failed to load datasets. Please try again later.</div>';
-                });
+            // 加载数据集
+            function loadDatasets(page = 1) {
+                datasetList.innerHTML = '<div class="loading">Loading datasets...</div>';
+                fetch(`/api/datasets?page=${page}&per_page=${perPage}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        allDatasets = data.datasets;
+                        totalPages = data.total_pages;
+                        currentPage = data.current_page;
+                        displayDatasets(allDatasets);
+                        updatePagination();
+                    })
+                    .catch(error => {
+                        console.error('Error fetching datasets:', error);
+                        datasetList.innerHTML = '<div class="error">Failed to load datasets. Please try again later.</div>';
+                    });
+            }
+
+            // 更新分页按钮状态
+            function updatePagination() {
+                prevButton.disabled = currentPage === 1;
+                nextButton.disabled = currentPage === totalPages;
+            }
+
+            // 分页按钮事件
+            prevButton.addEventListener('click', () => {
+                if (currentPage > 1) {
+                    loadDatasets(currentPage - 1);
+                }
+            });
+
+            nextButton.addEventListener('click', () => {
+                if (currentPage < totalPages) {
+                    loadDatasets(currentPage + 1);
+                }
+            });
 
             // 搜索功能
             searchInput.addEventListener('input', () => {
                 const searchTerm = searchInput.value.toLowerCase().trim();
                 if (searchTerm === '') {
-                    displayDatasets(allDatasets);
+                    loadDatasets(1);
                 } else {
                     const filteredDatasets = allDatasets.filter(dataset => 
                         dataset.dataset_entity && dataset.dataset_entity.toLowerCase().includes(searchTerm)
@@ -74,7 +158,6 @@
                     const card = document.createElement('div');
                     card.className = 'dataset-card';
                     
-                    // 使用encodeURIComponent确保URL中的特殊字符被正确处理
                     const datasetUrl = `/dataset/${encodeURIComponent(dataset.dataset_entity)}`;
                     
                     card.innerHTML = `
@@ -89,6 +172,9 @@
                     datasetList.appendChild(card);
                 });
             }
+
+            // 初始加载
+            loadDatasets();
         });
     </script>
 </body>

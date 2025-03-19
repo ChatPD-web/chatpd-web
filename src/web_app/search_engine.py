@@ -205,8 +205,20 @@ def get_pagination(current_page, total_pages, delta=2):
 
 
 # Flask 应用
-app = Flask(__name__, static_folder="../../static", template_folder="../..")
+app = Flask(__name__, 
+    static_folder="../../static",  # 静态文件路径
+    template_folder="../..",       # 模板文件路径
+    static_url_path="/static"      # 静态文件URL路径
+)
 CORS(app, resources={r"/*": {"origins": "*"}})
+
+# 添加调试模式
+app.debug = True
+
+# 确保静态文件可以被访问
+@app.route("/static/<path:filename>")
+def serve_static(filename):
+    return app.send_static_file(filename)
 
 
 @app.route("/api/search", methods=["GET"])
@@ -250,10 +262,42 @@ def filters_api():
 
 @app.route("/api/datasets", methods=["GET"])
 def datasets_api():
-    """获取所有数据集列表"""
-    datasets = get_datasets()
+    """获取所有数据集列表，支持分页"""
+    page = int(request.args.get("page", 1))
+    per_page = int(request.args.get("per_page", 20))
+    offset = (page - 1) * per_page
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # 获取总记录数
+    cursor.execute('''
+        SELECT COUNT(*) as total 
+        FROM dataset_usage 
+        WHERE dataset_entity IS NOT NULL AND dataset_entity != ""
+    ''')
+    total_count = cursor.fetchone()["total"]
+    
+    # 获取分页数据
+    cursor.execute('''
+        SELECT dataset_entity, COUNT(*) as usage_count 
+        FROM dataset_usage 
+        WHERE dataset_entity IS NOT NULL AND dataset_entity != "" 
+        GROUP BY dataset_entity 
+        ORDER BY usage_count DESC
+        LIMIT ? OFFSET ?
+    ''', (per_page, offset))
+    
+    datasets = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    
     return (
-        json.dumps({"datasets": datasets}, ensure_ascii=False),
+        json.dumps({
+            "datasets": datasets,
+            "total_count": total_count,
+            "total_pages": ceil(total_count / per_page),
+            "current_page": page
+        }, ensure_ascii=False),
         200,
         {"Content-Type": "application/json"},
     )
@@ -277,7 +321,7 @@ def dataset_detail_api(dataset_entity):
     )
 
 
-@app.route("/", methods=["GET"])
+@app.route("/")
 def home():
     selected_data_type = request.args.get("data_type", "All")
     selected_task = request.args.get("task", "All")

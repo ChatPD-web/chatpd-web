@@ -5,6 +5,167 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ChatPD - {{ dataset.dataset_entity }}</title>
     <link rel="stylesheet" href="/static/css/styles.css">
+    <style>
+        .top-nav {
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            padding: 1rem 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .top-nav ul {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+        .top-nav a {
+            color: white;
+            text-decoration: none;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            transition: background-color 0.3s;
+        }
+        .top-nav a:hover {
+            background-color: rgba(255,255,255,0.1);
+        }
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1.5rem;
+        }
+        .dataset-header {
+            margin-bottom: 2rem;
+        }
+        .dataset-header h1 {
+            margin-bottom: 0.5rem;
+            color: #1e293b;
+        }
+        .dataset-link {
+            display: inline-block;
+            color: #4f46e5;
+            text-decoration: none;
+            margin-top: 0.5rem;
+            transition: color 0.3s;
+        }
+        .dataset-link:hover {
+            color: #4338ca;
+            text-decoration: underline;
+        }
+        .info-section {
+            background-color: #f8fafc;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .info-section h2 {
+            margin-top: 0;
+            margin-bottom: 1.25rem;
+            color: #1e293b;
+            font-size: 1.25rem;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+        @media (min-width: 768px) {
+            .info-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        .info-item {
+            display: flex;
+            flex-direction: column;
+        }
+        .info-item .label {
+            font-weight: 500;
+            color: #64748b;
+            margin-bottom: 0.25rem;
+        }
+        .info-item .value {
+            color: #1e293b;
+        }
+        .info-item .value a {
+            color: #4f46e5;
+            text-decoration: none;
+        }
+        .info-item .value a:hover {
+            text-decoration: underline;
+        }
+        .citation-box {
+            background-color: #f1f5f9;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-break: break-word;
+            color: #334155;
+            border-left: 4px solid #4f46e5;
+        }
+        .dataset-usage h2 {
+            margin-bottom: 1.25rem;
+            color: #1e293b;
+        }
+        .search-filter {
+            margin-bottom: 1.5rem;
+        }
+        .search-filter input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid #cbd5e1;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+        }
+        .paper-card {
+            background-color: #f8fafc;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            transition: transform 0.3s;
+        }
+        .paper-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        .paper-header {
+            margin-bottom: 1rem;
+        }
+        .paper-header h3 {
+            margin-top: 0;
+            margin-bottom: 0.5rem;
+            color: #1e293b;
+        }
+        .arxiv-link {
+            display: inline-block;
+            color: #4f46e5;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+        .arxiv-link:hover {
+            text-decoration: underline;
+        }
+        .paper-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .meta-item .label {
+            color: #64748b;
+            font-weight: 500;
+        }
+        .meta-item .value {
+            color: #1e293b;
+        }
+    </style>
 </head>
 <body>
     <nav class="top-nav">

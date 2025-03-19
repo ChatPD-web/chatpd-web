@@ -241,7 +241,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // 构建 Dataset Entity
                 let datasetEntity = '';
                 if (result.dataset_entity) {
-                    datasetEntity = `<p><strong>Dataset:</strong> <a href="${apiUrl}/dataset/${encodeURIComponent(result.dataset_entity)}">${result.dataset_entity}</a></p>`;
+                    datasetEntity = `<p><strong>Dataset Entity:</strong> <a href="${apiUrl}/dataset/${encodeURIComponent(result.dataset_entity)}">${result.dataset_entity}</a></p>`;
                 }
 
                 // 构建 arXiv ID 和标题
@@ -259,6 +259,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     ${datasetEntity}
                     <p><strong>Task:</strong> ${result.task || 'N/A'}</p>
                     <p><strong>Data Type:</strong> ${result.data_type || 'N/A'}</p>
+                    <p><strong>Data Scale:</strong> ${result.scale || 'N/A'}</p>
+                    <p><strong>Location:</strong> ${result.location || 'N/A'}</p>
+                    <p><strong>Other Information:</strong> ${result.other_info || 'N/A'}</p>
                     <p><strong>Summary:</strong> ${result.dataset_summary || 'No summary available.'}</p>
                 `;
                 resultsList.appendChild(item);
