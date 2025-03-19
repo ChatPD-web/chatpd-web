@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ChatPD</title>
-    <link rel="stylesheet" href="static/css/styles.css">
+    <link id="css-link" rel="stylesheet" href="static/css/styles.css">
     <script src="static/js/script.js"></script>
     <style>
         .top-nav {
@@ -201,6 +201,19 @@
             
             const baseUrl = getBaseUrl();
             
+            // Get API URL - use remote server when on GitHub Pages
+            const getApiUrl = () => {
+                const hostname = window.location.hostname;
+                if (hostname === 'chatpd-web.github.io' || hostname.includes('github.io')) {
+                    // When on GitHub Pages, use the remote API server
+                    return 'https://testweb.241814.xyz:5000';
+                }
+                // Local development - use relative paths
+                return '';
+            };
+            
+            const apiUrl = getApiUrl();
+            
             // Update navigation links if needed
             document.querySelectorAll('.top-nav a').forEach(link => {
                 if (link.getAttribute('href') === './') {
@@ -209,6 +222,12 @@
                     link.setAttribute('href', baseUrl + '/datasets');
                 }
             });
+            
+            // Update CSS link path if needed
+            const cssLink = document.getElementById('css-link');
+            if (baseUrl && cssLink) {
+                cssLink.href = `${baseUrl}/static/css/styles.css`;
+            }
             
             // Additional code for index.html functionality can be added here
             

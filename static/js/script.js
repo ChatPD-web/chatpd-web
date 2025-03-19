@@ -1,8 +1,44 @@
 document.addEventListener('DOMContentLoaded', () => {
     // API URL配置 - 本地开发使用相对路径，生产环境使用绝对URL
-    const apiUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-        ? '' 
-        : 'https://testweb.241814.xyz:5000';
+    const getApiUrl = () => {
+        const hostname = window.location.hostname;
+        if (hostname === 'chatpd-web.github.io' || hostname.includes('github.io')) {
+            // GitHub Pages deployment - use remote API server
+            return 'https://testweb.241814.xyz:5000';
+        } else if (hostname === 'localhost' || hostname === '127.0.0.1') {
+            // Local development - use relative paths
+            return '';
+        } else {
+            // Custom domain or other environments
+            return 'https://testweb.241814.xyz:5000';
+        }
+    };
+    
+    const apiUrl = getApiUrl();
+    
+    // Get base URL for navigation links
+    const getBaseUrl = () => {
+        const path = window.location.pathname;
+        if (path.includes('/chatpd-web/')) {
+            // GitHub Pages deployment
+            return '/chatpd-web';
+        }
+        // Local development
+        return '';
+    };
+    
+    const baseUrl = getBaseUrl();
+    
+    // Update navigation links if present
+    if (document.querySelector('.top-nav')) {
+        document.querySelectorAll('.top-nav a').forEach(link => {
+            if (link.getAttribute('href') === './') {
+                link.setAttribute('href', baseUrl + '/' || './');
+            } else if (link.getAttribute('href') === 'datasets') {
+                link.setAttribute('href', baseUrl + '/datasets');
+            }
+        });
+    }
     
     const form = document.getElementById('search-form');
     const resultsList = document.getElementById('results-list');
@@ -241,7 +277,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 // 构建 Dataset Entity
                 let datasetEntity = '';
                 if (result.dataset_entity) {
-                    datasetEntity = `<p><strong>Dataset Entity:</strong> <a href="${apiUrl}/dataset/${encodeURIComponent(result.dataset_entity)}">${result.dataset_entity}</a></p>`;
+                    const hostname = window.location.hostname;
+                    const datasetUrl = hostname === 'chatpd-web.github.io' || hostname.includes('github.io')
+                        ? `${apiUrl}/dataset/${encodeURIComponent(result.dataset_entity)}`
+                        : `${baseUrl}/dataset/${encodeURIComponent(result.dataset_entity)}`;
+                    datasetEntity = `<p><strong>Dataset Entity:</strong> <a href="${datasetUrl}">${result.dataset_entity}</a></p>`;
                 }
 
                 // 构建 arXiv ID 和标题

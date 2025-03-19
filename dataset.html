@@ -313,6 +313,19 @@
             
             const baseUrl = getBaseUrl();
             
+            // Get API URL - use remote server when on GitHub Pages
+            const getApiUrl = () => {
+                const hostname = window.location.hostname;
+                if (hostname === 'chatpd-web.github.io' || hostname.includes('github.io')) {
+                    // When on GitHub Pages, use the remote API server
+                    return 'https://testweb.241814.xyz:5000';
+                }
+                // Local development - use relative paths
+                return '';
+            };
+            
+            const apiUrl = getApiUrl();
+            
             // Update stylesheet link
             const cssLink = document.getElementById('css-link');
             if (baseUrl) {

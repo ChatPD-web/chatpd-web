@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ChatPD - Datasets</title>
-    <link rel="stylesheet" href="static/css/styles.css">
+    <link id="css-link" rel="stylesheet" href="static/css/styles.css">
     <style>
         .top-nav {
             background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
@@ -85,15 +85,6 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const datasetList = document.getElementById('dataset-list');
-            const searchInput = document.getElementById('dataset-search-input');
-            const prevButton = document.getElementById('prev-page');
-            const nextButton = document.getElementById('next-page');
-            let currentPage = 1;
-            let totalPages = 1;
-            let allDatasets = [];
-            const perPage = 30;
-            
             // Get base URL for API calls
             const getBaseUrl = () => {
                 const path = window.location.pathname;
@@ -106,11 +97,48 @@
             };
             
             const baseUrl = getBaseUrl();
+            
+            // Get API URL - use remote server when on GitHub Pages
+            const getApiUrl = () => {
+                const hostname = window.location.hostname;
+                if (hostname === 'chatpd-web.github.io' || hostname.includes('github.io')) {
+                    // When on GitHub Pages, use the remote API server
+                    return 'https://testweb.241814.xyz:5000';
+                }
+                // Local development - use relative paths
+                return '';
+            };
+            
+            const apiUrl = getApiUrl();
+            
+            // Update navigation links if needed
+            document.querySelectorAll('.top-nav a').forEach(link => {
+                if (link.getAttribute('href') === './') {
+                    link.setAttribute('href', baseUrl + '/' || './');
+                } else if (link.getAttribute('href') === 'datasets') {
+                    link.setAttribute('href', baseUrl + '/datasets');
+                }
+            });
+            
+            // Update CSS link path if needed
+            const cssLink = document.getElementById('css-link');
+            if (baseUrl && cssLink) {
+                cssLink.href = `${baseUrl}/static/css/styles.css`;
+            }
+
+            const datasetList = document.getElementById('dataset-list');
+            const searchInput = document.getElementById('dataset-search-input');
+            const prevButton = document.getElementById('prev-page');
+            const nextButton = document.getElementById('next-page');
+            let currentPage = 1;
+            let totalPages = 1;
+            let allDatasets = [];
+            const perPage = 30;
 
             // 加载数据集
             function loadDatasets(page = 1) {
                 datasetList.innerHTML = '<div class="loading">Loading datasets...</div>';
-                fetch(`${baseUrl}/api/datasets?page=${page}&per_page=${perPage}`)
+                fetch(`${apiUrl}/api/datasets?page=${page}&per_page=${perPage}`)
                     .then(response => response.json())
                     .then(data => {
                         allDatasets = data.datasets;
@@ -171,7 +199,11 @@
                     const card = document.createElement('div');
                     card.className = 'dataset-card';
                     
-                    const datasetUrl = `${baseUrl}/dataset/${encodeURIComponent(dataset.dataset_entity)}`;
+                    // Use apiUrl for dataset details page when on GitHub Pages
+                    const hostname = window.location.hostname;
+                    const datasetUrl = hostname === 'chatpd-web.github.io' || hostname.includes('github.io')
+                        ? `${apiUrl}/dataset/${encodeURIComponent(dataset.dataset_entity)}`
+                        : `${baseUrl}/dataset/${encodeURIComponent(dataset.dataset_entity)}`;
                     
                     card.innerHTML = `
                         <h3>
