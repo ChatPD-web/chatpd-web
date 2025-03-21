@@ -265,28 +265,39 @@ def datasets_api():
     """获取所有数据集列表，支持分页"""
     page = int(request.args.get("page", 1))
     per_page = int(request.args.get("per_page", 20))
+    search = request.args.get("search", "").strip()
     offset = (page - 1) * per_page
     
     conn = get_db_connection()
     cursor = conn.cursor()
     
+    # 添加搜索条件
+    search_condition = ""
+    params = []
+    
+    if search:
+        search_condition = "AND dataset_entity LIKE ?"
+        params.append(f"%{search}%")
+    
     # 获取总记录数
-    cursor.execute('''
-        SELECT COUNT(*) as total 
+    cursor.execute(f'''
+        SELECT COUNT(DISTINCT dataset_entity) as total 
         FROM dataset_usage 
-        WHERE dataset_entity IS NOT NULL AND dataset_entity != ""
-    ''')
+        WHERE dataset_entity IS NOT NULL AND dataset_entity != "" {search_condition}
+    ''', params)
     total_count = cursor.fetchone()["total"]
     
     # 获取分页数据
-    cursor.execute('''
+    query = f'''
         SELECT dataset_entity, COUNT(*) as usage_count 
         FROM dataset_usage 
-        WHERE dataset_entity IS NOT NULL AND dataset_entity != "" 
+        WHERE dataset_entity IS NOT NULL AND dataset_entity != "" {search_condition}
         GROUP BY dataset_entity 
         ORDER BY usage_count DESC
         LIMIT ? OFFSET ?
-    ''', (per_page, offset))
+    '''
+    
+    cursor.execute(query, params + [per_page, offset])
     
     datasets = [dict(row) for row in cursor.fetchall()]
     conn.close()

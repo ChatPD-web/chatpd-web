@@ -178,10 +178,20 @@
                 if (searchTerm === '') {
                     loadDatasets(1);
                 } else {
-                    const filteredDatasets = allDatasets.filter(dataset => 
-                        dataset.dataset_entity && dataset.dataset_entity.toLowerCase().includes(searchTerm)
-                    );
-                    displayDatasets(filteredDatasets);
+                    // 改为调用API进行搜索，而不是仅过滤当前页数据
+                    fetch(`${apiUrl}/api/datasets?search=${encodeURIComponent(searchTerm)}&page=1&per_page=${perPage}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            allDatasets = data.datasets;
+                            totalPages = data.total_pages;
+                            currentPage = data.current_page;
+                            displayDatasets(allDatasets);
+                            updatePagination();
+                        })
+                        .catch(error => {
+                            console.error('Error searching datasets:', error);
+                            datasetList.innerHTML = '<div class="error">Failed to search datasets. Please try again later.</div>';
+                        });
                 }
             });
 

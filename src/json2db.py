@@ -12,12 +12,15 @@ db_file = "data/chatpd_data.db"
 conn = sqlite3.connect(db_file)
 cursor = conn.cursor()
 
-# 创建表
+# 先删除表（如果已存在）以避免主键定义冲突
+cursor.execute('DROP TABLE IF EXISTS dataset_usage')
+
+# 创建表，使用 arxiv_id 和 dataset_name 的组合作为主键
 cursor.execute('''
     CREATE TABLE IF NOT EXISTS dataset_usage (
-        arxiv_id TEXT PRIMARY KEY,
-        title TEXT,
+        arxiv_id TEXT,
         dataset_name TEXT,
+        title TEXT,
         dataset_summary TEXT,
         task TEXT,
         data_type TEXT,
@@ -31,22 +34,23 @@ cursor.execute('''
         entity_name TEXT,
         dataset_entity TEXT,
         papers_with_code_url TEXT,
-        homepage TEXT
+        homepage TEXT,
+        PRIMARY KEY (arxiv_id, dataset_name)
     )
 ''')
 
-# 插入数据
+# 使用 REPLACE 插入数据，以确保更新现有记录
 for entry in data:
     cursor.execute('''
-        INSERT OR IGNORE INTO dataset_usage (
-            arxiv_id, title, dataset_name, dataset_summary, task, data_type, location, scale,
+        REPLACE INTO dataset_usage (
+            arxiv_id, dataset_name, title, dataset_summary, task, data_type, location, scale,
             dataset_citation, dataset_provider, dataset_url, dataset_publicly_available,
             other_info, entity_name, dataset_entity, papers_with_code_url, homepage
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         entry.get("arxiv id"),
-        entry.get("title"),
         entry.get("dataset name"),
+        entry.get("title"),
         entry.get("dataset summary"),
         entry.get("task"),
         entry.get("data type"),
@@ -66,5 +70,4 @@ for entry in data:
 # 提交更改并关闭连接
 conn.commit()
 conn.close()
-
-print("data saved to db")
+print("数据已成功保存到数据库")
