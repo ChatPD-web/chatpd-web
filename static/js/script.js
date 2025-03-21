@@ -266,43 +266,44 @@ document.addEventListener('DOMContentLoaded', () => {
                 const item = document.createElement('div');
                 item.className = 'result-item';
 
-                // 构建 Dataset Name
-                let datasetName = `<strong>Dataset Name:</strong> `;
-                if (result.homepage) {
-                    datasetName += `<a href="${result.homepage}" target="_blank">${result.dataset_entity}</a>`;
-                } else {
-                    datasetName += result.dataset_entity || 'N/A';
-                }
-
-                // 构建 Dataset Entity
-                let datasetEntity = '';
-                if (result.dataset_entity) {
-                    const hostname = window.location.hostname;
-                    const datasetUrl = hostname === 'chatpd-web.github.io' || hostname.includes('github.io')
-                        ? `${apiUrl}/dataset/${encodeURIComponent(result.dataset_entity)}`
-                        : `${baseUrl}/dataset/${encodeURIComponent(result.dataset_entity)}`;
-                    datasetEntity = `<p><strong>Dataset Entity:</strong> <a href="${datasetUrl}">${result.dataset_entity}</a></p>`;
-                }
-
                 // 构建 arXiv ID 和标题
                 let title = '';
                 if (result.arxiv_id) {
-                    title = `<h4><a href="https://arxiv.org/abs/${result.arxiv_id}" target="_blank">${result.title || `arXiv:${result.arxiv_id}`}</a></h4>`;
+                    title = `<h4>${result.title || 'Untitled'}</h4>`;
                 } else {
                     title = `<h4>${result.title || 'Untitled'}</h4>`;
+                }
+
+                // 处理Dataset显示逻辑：如果有Dataset Entity显示Dataset Entity，否则显示Dataset Name
+                let datasetInfo = '';
+                const hostname = window.location.hostname;
+                
+                if (result.dataset_entity) {
+                    const datasetUrl = hostname === 'chatpd-web.github.io' || hostname.includes('github.io')
+                        ? `${apiUrl}/dataset/${encodeURIComponent(result.dataset_entity)}`
+                        : `${baseUrl}/dataset/${encodeURIComponent(result.dataset_entity)}`;
+                    datasetInfo = `<p><strong>Dataset Entity:</strong> <a href="${datasetUrl}">${result.dataset_entity}</a></p>`;
+                } else if (result.dataset_name) {
+                    datasetInfo = `<p><strong>Dataset Name:</strong> ${result.dataset_name}`;
+                    if (result.homepage) {
+                        datasetInfo += ` <a href="${result.homepage}" target="_blank">[Homepage]</a>`;
+                    }
+                    datasetInfo += `</p>`;
+                } else {
+                    datasetInfo = `<p><strong>Dataset Name:</strong> N/A</p>`;
                 }
 
                 // 组合所有信息
                 item.innerHTML = `
                     ${title}
-                    <p>${datasetName}</p>
-                    ${datasetEntity}
+                    ${datasetInfo}
+                    <p><strong>arXiv ID:</strong> ${result.arxiv_id ? `<a href="https://arxiv.org/abs/${result.arxiv_id}" target="_blank">${result.arxiv_id}</a>` : 'N/A'}</p>
                     <p><strong>Task:</strong> ${result.task || 'N/A'}</p>
                     <p><strong>Data Type:</strong> ${result.data_type || 'N/A'}</p>
                     <p><strong>Data Scale:</strong> ${result.scale || 'N/A'}</p>
                     <p><strong>Location:</strong> ${result.location || 'N/A'}</p>
-                    <p><strong>Other Information:</strong> ${result.other_info || 'N/A'}</p>
                     <p><strong>Summary:</strong> ${result.dataset_summary || 'No summary available.'}</p>
+                    <p><strong>Other Information:</strong> ${result.other_info || 'N/A'}</p>
                 `;
                 resultsList.appendChild(item);
             });

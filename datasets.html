@@ -79,6 +79,7 @@
         <!-- 分页控件 -->
         <div class="pagination" id="pagination">
             <button id="prev-page" disabled>&laquo; Previous</button>
+            <select id="page-selector"></select>
             <button id="next-page" disabled>Next &raquo;</button>
         </div>
     </div>
@@ -130,6 +131,7 @@
             const searchInput = document.getElementById('dataset-search-input');
             const prevButton = document.getElementById('prev-page');
             const nextButton = document.getElementById('next-page');
+            const pageSelector = document.getElementById('page-selector');
             let currentPage = 1;
             let totalPages = 1;
             let allDatasets = [];
@@ -146,6 +148,7 @@
                         currentPage = data.current_page;
                         displayDatasets(allDatasets);
                         updatePagination();
+                        populatePageSelector();
                     })
                     .catch(error => {
                         console.error('Error fetching datasets:', error);
@@ -159,6 +162,20 @@
                 nextButton.disabled = currentPage === totalPages;
             }
 
+            // 填充页码选择器
+            function populatePageSelector() {
+                pageSelector.innerHTML = '';
+                for (let i = 1; i <= totalPages; i++) {
+                    const option = document.createElement('option');
+                    option.value = i;
+                    option.textContent = `Page ${i} of ${totalPages}`;
+                    if (i === currentPage) {
+                        option.selected = true;
+                    }
+                    pageSelector.appendChild(option);
+                }
+            }
+
             // 分页按钮事件
             prevButton.addEventListener('click', () => {
                 if (currentPage > 1) {
@@ -170,6 +187,12 @@
                 if (currentPage < totalPages) {
                     loadDatasets(currentPage + 1);
                 }
+            });
+
+            // 页码选择器事件
+            pageSelector.addEventListener('change', function() {
+                currentPage = parseInt(this.value);
+                loadDatasets(currentPage);
             });
 
             // 搜索功能
@@ -187,6 +210,7 @@
                             currentPage = data.current_page;
                             displayDatasets(allDatasets);
                             updatePagination();
+                            populatePageSelector();
                         })
                         .catch(error => {
                             console.error('Error searching datasets:', error);
