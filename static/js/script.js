@@ -279,9 +279,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const hostname = window.location.hostname;
                 
                 if (result.dataset_entity) {
-                    const datasetUrl = hostname === 'chatpd-web.github.io' || hostname.includes('github.io')
-                        ? `${apiUrl}/dataset/${encodeURIComponent(result.dataset_entity)}`
-                        : `${baseUrl}/dataset/${encodeURIComponent(result.dataset_entity)}`;
+                    // Always use baseUrl for internal navigation
+                    const datasetUrl = `${baseUrl}/dataset/${encodeURIComponent(result.dataset_entity)}`;
                     datasetInfo = `<p><strong>Dataset Entity:</strong> <a href="${datasetUrl}">${result.dataset_entity}</a></p>`;
                 } else if (result.dataset_name) {
                     datasetInfo = `<p><strong>Dataset Name:</strong> ${result.dataset_name}`;

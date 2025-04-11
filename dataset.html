@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ChatPD - {{ dataset.dataset_entity }}</title>
+    <title>ChatPD - Dataset Details</title>
     <link id="css-link" rel="stylesheet" href="static/css/styles.css">
     <style>
         .top-nav {
@@ -125,11 +125,13 @@
             padding: 1.5rem;
             margin-bottom: 1rem;
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            transition: transform 0.3s;
+            transition: all 0.3s ease;
+            border-left: 4px solid transparent;
         }
         .paper-card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            border-left: 4px solid #4f46e5;
         }
         .paper-header {
             margin-bottom: 1rem;
@@ -141,12 +143,18 @@
         }
         .arxiv-link {
             display: inline-block;
-            color: #4f46e5;
+            background: #4f46e5;
+            color: white;
             text-decoration: none;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
+            padding: 0.3rem 0.6rem;
+            border-radius: 0.375rem;
+            margin-top: 0.25rem;
+            transition: background-color 0.3s;
         }
         .arxiv-link:hover {
-            text-decoration: underline;
+            background: #4338ca;
+            text-decoration: none;
         }
         .paper-meta {
             display: flex;
@@ -165,6 +173,12 @@
         .meta-item .value {
             color: #1e293b;
         }
+        #loading-indicator, #error-message {
+            text-align: center;
+            padding: 2rem;
+            font-size: 1.2rem;
+            color: #64748b;
+        }
     </style>
 </head>
 <body>
@@ -176,191 +190,277 @@
     </nav>
 
     <div class="container dataset-detail-container">
-        <div class="dataset-header">
-            <h1>{{ dataset.dataset_entity }}</h1>
-            {% if dataset.homepage %}
-            <a href="{{ dataset.homepage }}" target="_blank" class="dataset-link">Official Homepage</a>
-            {% endif %}
-        </div>
+        <div id="loading-indicator">Loading dataset details...</div>
+        <div id="error-message" style="display: none;"></div>
 
-        <div class="dataset-info">
-            <div class="info-section">
-                <h2>Dataset Information</h2>
-                <div class="info-grid">
-                    {% if dataset.dataset_summary %}
-                    <div class="info-item">
-                        <div class="label">Summary:</div>
-                        <div class="value">{{ dataset.dataset_summary }}</div>
-                    </div>
-                    {% endif %}
+        <div id="dataset-content" style="display: none;">
+            <div class="dataset-header">
+                <h1 id="dataset-entity"></h1>
+                <a id="dataset-homepage-link" href="#" target="_blank" class="dataset-link" style="display: none;">Official Homepage</a>
+            </div>
 
-                    {% if dataset.data_type %}
-                    <div class="info-item">
-                        <div class="label">Data Type:</div>
-                        <div class="value">{{ dataset.data_type }}</div>
-                    </div>
-                    {% endif %}
-
-                    {% if dataset.task %}
-                    <div class="info-item">
-                        <div class="label">Task:</div>
-                        <div class="value">{{ dataset.task }}</div>
-                    </div>
-                    {% endif %}
-
-                    {% if dataset.scale %}
-                    <div class="info-item">
-                        <div class="label">Scale:</div>
-                        <div class="value">{{ dataset.scale }}</div>
-                    </div>
-                    {% endif %}
-
-                    {% if dataset.dataset_provider %}
-                    <div class="info-item">
-                        <div class="label">Provider:</div>
-                        <div class="value">{{ dataset.dataset_provider }}</div>
-                    </div>
-                    {% endif %}
-
-                    {% if dataset.dataset_url %}
-                    <div class="info-item">
-                        <div class="label">URL:</div>
-                        <div class="value">
-                            <a href="{{ dataset.dataset_url }}" target="_blank">{{ dataset.dataset_url }}</a>
+            <div class="dataset-info">
+                <div class="info-section">
+                    <h2>Dataset Information</h2>
+                    <div class="info-grid">
+                        <div class="info-item" id="info-summary" style="display: none;">
+                            <div class="label">Summary:</div>
+                            <div class="value" id="dataset-summary"></div>
                         </div>
-                    </div>
-                    {% endif %}
-
-                    {% if dataset.dataset_publicly_available %}
-                    <div class="info-item">
-                        <div class="label">Publicly Available:</div>
-                        <div class="value">{{ dataset.dataset_publicly_available }}</div>
-                    </div>
-                    {% endif %}
-
-                    {% if dataset.location %}
-                    <div class="info-item">
-                        <div class="label">Location:</div>
-                        <div class="value">{{ dataset.location }}</div>
-                    </div>
-                    {% endif %}
-
-                    {% if dataset.other_info %}
-                    <div class="info-item">
-                        <div class="label">Other Info:</div>
-                        <div class="value">{{ dataset.other_info }}</div>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-
-            {% if dataset.dataset_citation %}
-            <div class="info-section">
-                <h2>Citation</h2>
-                <div class="citation-box">
-                    {{ dataset.dataset_citation }}
-                </div>
-            </div>
-            {% endif %}
-        </div>
-
-        <div class="dataset-usage">
-            <h2>Usage Records ({{ records|length }})</h2>
-            
-            <div class="search-filter">
-                <input type="text" id="paper-search" placeholder="Search papers...">
-            </div>
-
-            <div class="paper-list" id="paper-list">
-                {% for record in records %}
-                <div class="paper-card" data-title="{{ record.title|lower }}">
-                    <div class="paper-header">
-                        <h3>{{ record.title }}</h3>
-                        {% if record.arxiv_id %}
-                        <a href="https://arxiv.org/abs/{{ record.arxiv_id }}" target="_blank" class="arxiv-link">
-                            arXiv:{{ record.arxiv_id }}
-                        </a>
-                        {% endif %}
-                    </div>
-                    <div class="paper-meta">
-                        <div class="meta-item">
-                            <span class="label">Task:</span>
-                            <span class="value">{{ record.task }}</span>
+                        <div class="info-item" id="info-data-type" style="display: none;">
+                            <div class="label">Data Type:</div>
+                            <div class="value" id="dataset-data-type"></div>
                         </div>
-                        <div class="meta-item">
-                            <span class="label">Data Type:</span>
-                            <span class="value">{{ record.data_type }}</span>
+                        <div class="info-item" id="info-task" style="display: none;">
+                            <div class="label">Task:</div>
+                            <div class="value" id="dataset-task"></div>
+                        </div>
+                        <div class="info-item" id="info-scale" style="display: none;">
+                            <div class="label">Scale:</div>
+                            <div class="value" id="dataset-scale"></div>
+                        </div>
+                        <div class="info-item" id="info-provider" style="display: none;">
+                            <div class="label">Provider:</div>
+                            <div class="value" id="dataset-provider"></div>
+                        </div>
+                        <div class="info-item" id="info-url" style="display: none;">
+                            <div class="label">URL:</div>
+                            <div class="value">
+                                <a id="dataset-url" href="#" target="_blank"></a>
+                            </div>
+                        </div>
+                        <div class="info-item" id="info-public" style="display: none;">
+                            <div class="label">Publicly Available:</div>
+                            <div class="value" id="dataset-public"></div>
+                        </div>
+                        <div class="info-item" id="info-location" style="display: none;">
+                            <div class="label">Location:</div>
+                            <div class="value" id="dataset-location"></div>
+                        </div>
+                        <div class="info-item" id="info-other" style="display: none;">
+                            <div class="label">Other Info:</div>
+                            <div class="value" id="dataset-other"></div>
                         </div>
                     </div>
                 </div>
-                {% endfor %}
+
+                <div class="info-section" id="info-citation" style="display: none;">
+                    <h2>Citation</h2>
+                    <div class="citation-box" id="dataset-citation"></div>
+                </div>
+            </div>
+
+            <div class="dataset-usage">
+                <h2>Usage Records (<span id="usage-count">0</span>)</h2>
+                <div class="search-filter">
+                    <input type="text" id="paper-search" placeholder="Search papers...">
+                </div>
+                <div class="paper-list" id="paper-list">
+                    <!-- Paper cards will be added here by JS -->
+                </div>
+                <div id="no-papers-message" style="display: none; text-align: center; padding: 1rem; color: #64748b;">No usage records found for this dataset.</div>
             </div>
         </div>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // Get base URL for API calls
+            const loadingIndicator = document.getElementById('loading-indicator');
+            const errorMessage = document.getElementById('error-message');
+            const datasetContent = document.getElementById('dataset-content');
+            const paperSearch = document.getElementById('paper-search');
+            const paperList = document.getElementById('paper-list');
+            const noPapersMessage = document.getElementById('no-papers-message');
+
             const getBaseUrl = () => {
                 const path = window.location.pathname;
-                if (path.includes('/chatpd-web/')) {
-                    // GitHub Pages deployment
+                if (path.startsWith('/chatpd-web/')) { 
                     return '/chatpd-web';
                 }
-                // Local development
                 return '';
             };
-            
             const baseUrl = getBaseUrl();
-            
-            // Get API URL - use remote server when on GitHub Pages
+
             const getApiUrl = () => {
-                const hostname = window.location.hostname;
-                if (hostname === 'chatpd-web.github.io' || hostname.includes('github.io')) {
-                    // When on GitHub Pages, use the remote API server
-                    return 'https://testweb.241814.xyz:5000';
-                }
-                // Local development - use relative paths
-                return '';
+                return 'https://testweb.241814.xyz:5000';
             };
-            
             const apiUrl = getApiUrl();
-            
-            // Update stylesheet link
-            const cssLink = document.getElementById('css-link');
-            if (baseUrl) {
-                cssLink.href = `${baseUrl}/static/css/styles.css`;
-            } else {
-                // If we're in dataset subdirectory, we need to go up one level
-                if (window.location.pathname.includes('/dataset/')) {
-                    cssLink.href = '../static/css/styles.css';
+
+            function setElementText(id, text) {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.textContent = text || 'N/A';
+                    const parentInfoItem = element.closest('.info-item');
+                     if (text && parentInfoItem) {
+                        parentInfoItem.style.display = 'flex';
+                    }
                 }
             }
             
-            // Update navigation links if needed
-            document.querySelectorAll('.top-nav a').forEach(link => {
-                if (link.getAttribute('href') === './') {
-                    link.setAttribute('href', baseUrl + '/' || './');
-                } else if (link.getAttribute('href') === 'datasets') {
-                    link.setAttribute('href', baseUrl + '/datasets');
+            function setElementHref(id, url) {
+                const element = document.getElementById(id);
+                if (element && url) {
+                    element.href = url;
+                    element.textContent = url;
+                    const parentInfoItem = element.closest('.info-item');
+                     if (parentInfoItem) {
+                         parentInfoItem.style.display = 'flex';
+                     } else {
+                         element.style.display = 'inline-block';
+                     }
                 }
-            });
+            }
 
-            const paperSearch = document.getElementById('paper-search');
-            const paperCards = document.querySelectorAll('.paper-card');
+            function displayError(message) {
+                loadingIndicator.style.display = 'none';
+                datasetContent.style.display = 'none';
+                errorMessage.textContent = message;
+                errorMessage.style.display = 'block';
+            }
+
+            function updateNavLinks() {
+                document.querySelectorAll('.top-nav a').forEach(link => {
+                    const href = link.getAttribute('href');
+                     if (href === './') {
+                         link.setAttribute('href', baseUrl + '/' || '/');
+                     } else if (href === 'datasets') {
+                         link.setAttribute('href', baseUrl + '/datasets');
+                     }
+                 });
+                 const cssLink = document.getElementById('css-link');
+                 if (cssLink) {
+                     cssLink.href = `${baseUrl}/static/css/styles.css`;
+                 }
+             }
+            updateNavLinks();
+
+            function getDatasetNameFromPath() {
+                 const path = window.location.pathname;
+                 const match = path.match(/(?:\/chatpd-web)?\/dataset\/([^/]+)/);
+                 if (match && match[1]) {
+                     try {
+                         return decodeURIComponent(match[1]);
+                     } catch (e) {
+                         console.error("Error decoding dataset name:", e);
+                         return null;
+                     }
+                 }
+                 return null;
+            }
+            const datasetName = getDatasetNameFromPath();
+
+            async function loadDatasetDetails() {
+                if (!datasetName) {
+                    displayError('Could not determine dataset name from URL.');
+                    document.title = "ChatPD - Error";
+                    return;
+                }
+
+                document.title = `ChatPD - ${datasetName}`;
+
+                try {
+                    const response = await fetch(`${apiUrl}/api/dataset/${encodeURIComponent(datasetName)}`);
+                    
+                    if (!response.ok) {
+                         if (response.status === 404) {
+                             throw new Error(`Dataset '${datasetName}' not found.`);
+                         } else {
+                            throw new Error(`API request failed with status: ${response.status}`);
+                         }
+                    }
+
+                    const data = await response.json();
+
+                    if (!data || !data.dataset) {
+                        throw new Error("Invalid data received from API.");
+                    }
+
+                    const dataset = data.dataset;
+                    const records = data.usage_records || [];
+
+                    setElementText('dataset-entity', dataset.dataset_entity);
+                     document.title = `ChatPD - ${dataset.dataset_entity || datasetName}`;
+
+                    if (dataset.homepage) {
+                         setElementHref('dataset-homepage-link', dataset.homepage);
+                    }
+
+                    setElementText('dataset-summary', dataset.dataset_summary);
+                    setElementText('dataset-data-type', dataset.data_type);
+                    setElementText('dataset-task', dataset.task);
+                    setElementText('dataset-scale', dataset.scale);
+                    setElementText('dataset-provider', dataset.dataset_provider);
+                    if (dataset.dataset_url) {
+                         setElementHref('dataset-url', dataset.dataset_url);
+                    }
+                    setElementText('dataset-public', dataset.dataset_publicly_available);
+                    setElementText('dataset-location', dataset.location);
+                    setElementText('dataset-other', dataset.other_info);
+
+                    if (dataset.dataset_citation) {
+                        setElementText('dataset-citation', dataset.dataset_citation);
+                         document.getElementById('info-citation').style.display = 'block';
+                    }
+
+                    setElementText('usage-count', records.length);
+                    paperList.innerHTML = '';
+                    if (records.length > 0) {
+                        noPapersMessage.style.display = 'none';
+                        records.forEach(record => {
+                            const card = document.createElement('div');
+                            card.className = 'paper-card';
+                            card.dataset.title = (record.title || '').toLowerCase(); 
+
+                            const arxivLink = record.arxiv_id 
+                                ? `<a href="https://arxiv.org/abs/${record.arxiv_id}" target="_blank" class="arxiv-link"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>arXiv:${record.arxiv_id}</a>` 
+                                : '';
+
+                            card.innerHTML = `
+                                <div class="paper-header">
+                                    <h3>${record.title || 'N/A'}</h3>
+                                    ${arxivLink}
+                                </div>
+                                <div class="paper-meta">
+                                    <div class="meta-item">
+                                        <span class="label">Task:</span>
+                                        <span class="value">${record.task || 'N/A'}</span>
+                                    </div>
+                                    <div class="meta-item">
+                                        <span class="label">Data Type:</span>
+                                        <span class="value">${record.data_type || 'N/A'}</span>
+                                    </div>
+                                </div>
+                            `;
+                            paperList.appendChild(card);
+                        });
+                    } else {
+                         noPapersMessage.style.display = 'block';
+                    }
+
+                    loadingIndicator.style.display = 'none';
+                    datasetContent.style.display = 'block';
+
+                } catch (error) {
+                    console.error('Error loading dataset details:', error);
+                    displayError(`Failed to load dataset details: ${error.message}`);
+                     document.title = "ChatPD - Error Loading Dataset";
+                }
+            }
 
             paperSearch.addEventListener('input', () => {
                 const searchTerm = paperSearch.value.toLowerCase().trim();
+                const paperCards = paperList.querySelectorAll('.paper-card');
+                let visibleCount = 0;
                 
                 paperCards.forEach(card => {
                     const title = card.dataset.title;
-                    if (searchTerm === '' || title.includes(searchTerm)) {
-                        card.style.display = 'block';
-                    } else {
-                        card.style.display = 'none';
-                    }
+                    const isVisible = searchTerm === '' || (title && title.includes(searchTerm));
+                     card.style.display = isVisible ? 'block' : 'none';
+                     if (isVisible) visibleCount++;
                 });
             });
+
+            loadDatasetDetails();
         });
     </script>
 </body>

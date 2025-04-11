@@ -233,11 +233,8 @@
                     const card = document.createElement('div');
                     card.className = 'dataset-card';
                     
-                    // Use apiUrl for dataset details page when on GitHub Pages
-                    const hostname = window.location.hostname;
-                    const datasetUrl = hostname === 'chatpd-web.github.io' || hostname.includes('github.io')
-                        ? `${apiUrl}/dataset/${encodeURIComponent(dataset.dataset_entity)}`
-                        : `${baseUrl}/dataset/${encodeURIComponent(dataset.dataset_entity)}`;
+                    // Always use baseUrl for internal navigation
+                    const datasetUrl = `${baseUrl}/dataset/${encodeURIComponent(dataset.dataset_entity)}`;
                     
                     card.innerHTML = `
                         <h3>

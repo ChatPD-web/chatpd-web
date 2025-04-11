@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Title will be set dynamically -->
+    <title>ChatPD - Loading...</title> 
+    <link id="css-link" rel="stylesheet" href="/static/css/styles.css"> <!-- Default path, JS will correct -->
+    <style>
+        /* Existing styles from dataset.html ... */
+        .top-nav {
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            padding: 1rem 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .top-nav ul {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+        .top-nav a {
+            color: white;
+            text-decoration: none;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            transition: background-color 0.3s;
+        }
+        .top-nav a:hover {
+            background-color: rgba(255,255,255,0.1);
+        }
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1.5rem;
+        }
+        .dataset-header {
+            margin-bottom: 2rem;
+        }
+        .dataset-header h1 {
+            margin-bottom: 0.5rem;
+            color: #1e293b;
+        }
+        .dataset-link {
+            display: inline-block;
+            color: #4f46e5;
+            text-decoration: none;
+            margin-top: 0.5rem;
+            transition: color 0.3s;
+        }
+        .dataset-link:hover {
+            color: #4338ca;
+            text-decoration: underline;
+        }
+        .info-section {
+            background-color: #f8fafc;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .info-section h2 {
+            margin-top: 0;
+            margin-bottom: 1.25rem;
+            color: #1e293b;
+            font-size: 1.25rem;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+        @media (min-width: 768px) {
+            .info-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        .info-item {
+            display: flex;
+            flex-direction: column;
+        }
+        .info-item .label {
+            font-weight: 500;
+            color: #64748b;
+            margin-bottom: 0.25rem;
+        }
+        .info-item .value {
+            color: #1e293b;
+        }
+        .info-item .value a {
+            color: #4f46e5;
+            text-decoration: none;
+        }
+        .info-item .value a:hover {
+            text-decoration: underline;
+        }
+        .citation-box {
+            background-color: #f1f5f9;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-break: break-word;
+            color: #334155;
+            border-left: 4px solid #4f46e5;
+        }
+        .dataset-usage h2 {
+            margin-bottom: 1.25rem;
+            color: #1e293b;
+        }
+        .search-filter {
+            margin-bottom: 1.5rem;
+        }
+        .search-filter input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid #cbd5e1;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+        }
+        .paper-card {
+            background-color: #f8fafc;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            transition: transform 0.3s;
+        }
+        .paper-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        .paper-header {
+            margin-bottom: 1rem;
+        }
+        .paper-header h3 {
+            margin-top: 0;
+            margin-bottom: 0.5rem;
+            color: #1e293b;
+        }
+        .arxiv-link {
+            display: inline-block;
+            color: #4f46e5;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+        .arxiv-link:hover {
+            text-decoration: underline;
+        }
+        .paper-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .meta-item .label {
+            color: #64748b;
+            font-weight: 500;
+        }
+        .meta-item .value {
+            color: #1e293b;
+        }
+        #loading-indicator, #error-message {
+            text-align: center;
+            padding: 2rem;
+            font-size: 1.2rem;
+            color: #64748b;
+        }
+        /* Added style for genuine 404 message */
+        #genuine-404-message {
+             text-align: center;
+             padding: 4rem 2rem;
+             font-size: 1.5rem;
+             color: #475569;
+        }
+         #genuine-404-message h1 {
+             color: #1e293b;
+             margin-bottom: 1rem;
+         }
+         #genuine-404-message a {
+             color: #4f46e5;
+         }
+    </style>
+</head>
+<body>
+    <nav class="top-nav">
+        <ul>
+            <!-- Links will be updated by JS -->
+            <li><a href="./">Home</a></li>
+            <li><a href="datasets">Datasets</a></li>
+        </ul>
+    </nav>
+
+    <div class="container dataset-detail-container">
+        <!-- Loading Indicator -->
+        <div id="loading-indicator">Loading...</div>
+        <!-- Error Message -->
+        <div id="error-message" style="display: none;"></div>
+        <!-- Genuine 404 Message -->
+        <div id="genuine-404-message" style="display: none;">
+            <h1>404 - Page Not Found</h1>
+            <p>Sorry, the page you requested could not be found.</p>
+            <p><a id="home-link-404" href="/">Return to Home</a></p>
+        </div>
+
+        <!-- Content to be populated by JS (same as dataset.html) -->
+        <div id="dataset-content" style="display: none;">
+             <div class="dataset-header">
+                 <h1 id="dataset-entity"></h1>
+                 <a id="dataset-homepage-link" href="#" target="_blank" class="dataset-link" style="display: none;">Official Homepage</a>
+             </div>
+ 
+             <div class="dataset-info">
+                 <div class="info-section">
+                     <h2>Dataset Information</h2>
+                     <div class="info-grid">
+                         <div class="info-item" id="info-summary" style="display: none;">
+                             <div class="label">Summary:</div>
+                             <div class="value" id="dataset-summary"></div>
+                         </div>
+                         <div class="info-item" id="info-data-type" style="display: none;">
+                             <div class="label">Data Type:</div>
+                             <div class="value" id="dataset-data-type"></div>
+                         </div>
+                         <div class="info-item" id="info-task" style="display: none;">
+                             <div class="label">Task:</div>
+                             <div class="value" id="dataset-task"></div>
+                         </div>
+                         <div class="info-item" id="info-scale" style="display: none;">
+                             <div class="label">Scale:</div>
+                             <div class="value" id="dataset-scale"></div>
+                         </div>
+                         <div class="info-item" id="info-provider" style="display: none;">
+                             <div class="label">Provider:</div>
+                             <div class="value" id="dataset-provider"></div>
+                         </div>
+                          <div class="info-item" id="info-url" style="display: none;">
+                             <div class="label">URL:</div>
+                             <div class="value">
+                                 <a id="dataset-url" href="#" target="_blank"></a>
+                             </div>
+                         </div>
+                         <div class="info-item" id="info-public" style="display: none;">
+                             <div class="label">Publicly Available:</div>
+                             <div class="value" id="dataset-public"></div>
+                         </div>
+                         <div class="info-item" id="info-location" style="display: none;">
+                             <div class="label">Location:</div>
+                             <div class="value" id="dataset-location"></div>
+                         </div>
+                         <div class="info-item" id="info-other" style="display: none;">
+                             <div class="label">Other Info:</div>
+                             <div class="value" id="dataset-other"></div>
+                         </div>
+                     </div>
+                 </div>
+ 
+                 <div class="info-section" id="info-citation" style="display: none;">
+                     <h2>Citation</h2>
+                     <div class="citation-box" id="dataset-citation"></div>
+                 </div>
+             </div>
+ 
+             <div class="dataset-usage">
+                 <h2>Usage Records (<span id="usage-count">0</span>)</h2>
+                 <div class="search-filter">
+                     <input type="text" id="paper-search" placeholder="Search papers...">
+                 </div>
+                 <div class="paper-list" id="paper-list">
+                     <!-- Paper cards will be added here by JS -->
+                 </div>
+                  <div id="no-papers-message" style="display: none; text-align: center; padding: 1rem; color: #64748b;">No usage records found for this dataset.</div>
+             </div>
+         </div><!-- End #dataset-content -->
+    </div><!-- End .container -->
+
+    <script>
+        // --- IMPORTANT: THIS SCRIPT IS LARGELY COPIED FROM dataset.html --- 
+        // --- It handles dynamically loading content based on the URL path --- 
+        // --- It also shows a 404 message if the path is not a dataset path --- 
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const loadingIndicator = document.getElementById('loading-indicator');
+            const errorMessage = document.getElementById('error-message');
+            const datasetContent = document.getElementById('dataset-content');
+            const paperSearch = document.getElementById('paper-search');
+            const paperList = document.getElementById('paper-list');
+            const noPapersMessage = document.getElementById('no-papers-message');
+            const genuine404Message = document.getElementById('genuine-404-message'); // Specific 404 content area
+
+            // --- URL and API Setup ---
+            const getBaseUrl = () => {
+                const path = window.location.pathname;
+                if (path.startsWith('/chatpd-web/')) {
+                    return '/chatpd-web';
+                }
+                return ''; 
+            };
+            const baseUrl = getBaseUrl();
+
+            const getApiUrl = () => {
+                return 'https://testweb.241814.xyz:5000';
+            };
+            const apiUrl = getApiUrl();
+
+            // --- Helper Functions (same as dataset.html) ---
+            function setElementText(id, text) {
+                 const element = document.getElementById(id);
+                 if (element) {
+                     element.textContent = text || 'N/A';
+                     const parentInfoItem = element.closest('.info-item');
+                     if (text && parentInfoItem) {
+                         parentInfoItem.style.display = 'flex';
+                     }
+                 }
+            }
+            function setElementHref(id, url) {
+                 const element = document.getElementById(id);
+                 if (element && url) {
+                     element.href = url;
+                     element.textContent = url;
+                     const parentInfoItem = element.closest('.info-item');
+                     if (parentInfoItem) {
+                         parentInfoItem.style.display = 'flex';
+                     } else {
+                         element.style.display = 'inline-block';
+                     }
+                 }
+            }
+             function displayError(message) {
+                 loadingIndicator.style.display = 'none';
+                 datasetContent.style.display = 'none';
+                 genuine404Message.style.display = 'none'; // Hide genuine 404 too
+                 errorMessage.textContent = message;
+                 errorMessage.style.display = 'block';
+             }
+            function showGenuine404() {
+                loadingIndicator.style.display = 'none';
+                datasetContent.style.display = 'none';
+                errorMessage.style.display = 'none';
+                // Update the home link in the 404 message
+                const homeLink = document.getElementById('home-link-404');
+                if(homeLink) homeLink.href = baseUrl + '/' || '/';
+                genuine404Message.style.display = 'block';
+                document.title = "ChatPD - Page Not Found";
+            }
+
+            // --- Navigation Link Updates (same as dataset.html) ---
+             function updateNavLinks() {
+                 document.querySelectorAll('.top-nav a').forEach(link => {
+                     const href = link.getAttribute('href');
+                     if (href === './') {
+                         link.setAttribute('href', baseUrl + '/' || '/');
+                     } else if (href === 'datasets') {
+                         link.setAttribute('href', baseUrl + '/datasets');
+                     }
+                 });
+                 const cssLink = document.getElementById('css-link');
+                 if (cssLink) {
+                     cssLink.href = `${baseUrl}/static/css/styles.css`;
+                 }
+             }
+            updateNavLinks();
+
+            // --- Extract Dataset Name (same as dataset.html) ---
+            function getDatasetNameFromPath() {
+                 const path = window.location.pathname;
+                 const match = path.match(/(?:\/chatpd-web)?\/dataset\/([^/]+)/);
+                 if (match && match[1]) {
+                     try {
+                         return decodeURIComponent(match[1]);
+                     } catch (e) {
+                         console.error("Error decoding dataset name:", e);
+                         return null;
+                     }
+                 }
+                 return null;
+            }
+            const datasetName = getDatasetNameFromPath();
+
+            // --- Fetch and Display Data (Modified to handle non-dataset paths) ---
+            async function loadDataBasedOnPath() {
+                if (datasetName) {
+                    // Path looks like a dataset path, try loading details
+                    document.title = `ChatPD - ${datasetName}`; 
+                    loadingIndicator.style.display = 'block'; // Show loading initially
+                    
+                    try {
+                        const response = await fetch(`${apiUrl}/api/dataset/${encodeURIComponent(datasetName)}`);
+                        if (!response.ok) {
+                            if (response.status === 404) {
+                                throw new Error(`Dataset '${datasetName}' not found via API.`);
+                            } else {
+                                throw new Error(`API request failed: ${response.status}`);
+                            }
+                        }
+                        const data = await response.json();
+                        if (!data || !data.dataset) {
+                            throw new Error("Invalid data from API.");
+                        }
+
+                        const dataset = data.dataset;
+                        const records = data.usage_records || [];
+
+                        // --- Populate page (same logic as in dataset.html) ---
+                         setElementText('dataset-entity', dataset.dataset_entity);
+                         document.title = `ChatPD - ${dataset.dataset_entity || datasetName}`;
+                         if (dataset.homepage) {
+                             setElementHref('dataset-homepage-link', dataset.homepage);
+                         }
+                         setElementText('dataset-summary', dataset.dataset_summary);
+                         setElementText('dataset-data-type', dataset.data_type);
+                         setElementText('dataset-task', dataset.task);
+                         setElementText('dataset-scale', dataset.scale);
+                         setElementText('dataset-provider', dataset.dataset_provider);
+                         if (dataset.dataset_url) {
+                             setElementHref('dataset-url', dataset.dataset_url);
+                         }
+                         setElementText('dataset-public', dataset.dataset_publicly_available);
+                         setElementText('dataset-location', dataset.location);
+                         setElementText('dataset-other', dataset.other_info);
+                         if (dataset.dataset_citation) {
+                             setElementText('dataset-citation', dataset.dataset_citation);
+                             document.getElementById('info-citation').style.display = 'block';
+                         }
+                         setElementText('usage-count', records.length);
+                         paperList.innerHTML = '';
+                         if (records.length > 0) {
+                            noPapersMessage.style.display = 'none';
+                             records.forEach(record => {
+                                 const card = document.createElement('div');
+                                 card.className = 'paper-card';
+                                 card.dataset.title = (record.title || '').toLowerCase();
+                                 const arxivLink = record.arxiv_id 
+                                     ? `<a href="https://arxiv.org/abs/${record.arxiv_id}" target="_blank" class="arxiv-link">arXiv:${record.arxiv_id}</a>` 
+                                     : '';
+                                 card.innerHTML = `
+                                     <div class="paper-header"><h3>${record.title || 'N/A'}</h3>${arxivLink}</div>
+                                     <div class="paper-meta">
+                                         <div class="meta-item"><span class="label">Task:</span><span class="value">${record.task || 'N/A'}</span></div>
+                                         <div class="meta-item"><span class="label">Data Type:</span><span class="value">${record.data_type || 'N/A'}</span></div>
+                                     </div>
+                                 `;
+                                 paperList.appendChild(card);
+                             });
+                         } else {
+                             noPapersMessage.style.display = 'block';
+                         }
+                        // --- End Populate page ---
+                        
+                        loadingIndicator.style.display = 'none';
+                        datasetContent.style.display = 'block'; // Show the populated content
+
+                    } catch (error) {
+                        console.error('Error loading dataset details:', error);
+                        // Instead of generic error, show the 404 message if API failed likely due to not found
+                         if (error.message.includes("not found") || error.message.includes("404")) {
+                             showGenuine404();
+                         } else {
+                             displayError(`Failed to load dataset details: ${error.message}`);
+                         }
+                    }
+                } else {
+                    // Path does not match /dataset/, show the genuine 404 message
+                    showGenuine404();
+                }
+            }
+
+            // --- Paper Search/Filter (same as dataset.html) ---
+            paperSearch.addEventListener('input', () => {
+                 const searchTerm = paperSearch.value.toLowerCase().trim();
+                 const paperCards = paperList.querySelectorAll('.paper-card');
+                 let visibleCount = 0;
+                 paperCards.forEach(card => {
+                     const title = card.dataset.title;
+                     const isVisible = searchTerm === '' || (title && title.includes(searchTerm));
+                     card.style.display = isVisible ? 'block' : 'none';
+                     if (isVisible) visibleCount++;
+                 });
+            });
+
+            // --- Initial Load ---
+            loadDataBasedOnPath(); // Load data based on the initial URL path
+        });
+    </script>
+</body>
+</html> 
