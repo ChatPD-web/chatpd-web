@@ -23,3 +23,9 @@ src/web_app/config.py
 data/*
 
 logs/*
+
+# Deployment
+chapd.service
+DEPLOYMENT_README.md
+install_service.sh
+start_chatpd.sh

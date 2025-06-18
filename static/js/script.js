@@ -293,17 +293,42 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 // 组合所有信息
-                item.innerHTML = `
-                    ${title}
-                    ${datasetInfo}
-                    <p><strong>arXiv ID:</strong> ${result.arxiv_id ? `<a href="https://arxiv.org/abs/${result.arxiv_id}" target="_blank">${result.arxiv_id}</a>` : 'N/A'}</p>
-                    <p><strong>Task:</strong> ${result.task || 'N/A'}</p>
-                    <p><strong>Data Type:</strong> ${result.data_type || 'N/A'}</p>
-                    <p><strong>Data Scale:</strong> ${result.scale || 'N/A'}</p>
-                    <p><strong>Location:</strong> ${result.location || 'N/A'}</p>
-                    <p><strong>Summary:</strong> ${result.dataset_summary || 'No summary available.'}</p>
-                    <p><strong>Other Information:</strong> ${result.other_info || 'N/A'}</p>
-                `;
+                let resultHtml = `${title}${datasetInfo}`;
+                
+                // 只显示有值的字段
+                if (result.arxiv_id) {
+                    resultHtml += `<p><strong>arXiv ID:</strong> <a href="https://arxiv.org/abs/${result.arxiv_id}" target="_blank">${result.arxiv_id}</a></p>`;
+                }
+                
+                if (result.dataset_url) {
+                    resultHtml += `<p><strong>Dataset URL:</strong> <a href="${result.dataset_url}" target="_blank">${result.dataset_url}</a></p>`;
+                }
+                
+                if (result.task) {
+                    resultHtml += `<p><strong>Task:</strong> ${result.task}</p>`;
+                }
+                
+                if (result.data_type) {
+                    resultHtml += `<p><strong>Data Type:</strong> ${result.data_type}</p>`;
+                }
+                
+                if (result.scale) {
+                    resultHtml += `<p><strong>Data Scale:</strong> ${result.scale}</p>`;
+                }
+                
+                if (result.location) {
+                    resultHtml += `<p><strong>Location:</strong> ${result.location}</p>`;
+                }
+                
+                if (result.dataset_summary) {
+                    resultHtml += `<p><strong>Summary:</strong> ${result.dataset_summary}</p>`;
+                }
+                
+                if (result.other_info) {
+                    resultHtml += `<p><strong>Other Information:</strong> ${result.other_info}</p>`;
+                }
+                
+                item.innerHTML = resultHtml;
                 resultsList.appendChild(item);
             });
         } else {
