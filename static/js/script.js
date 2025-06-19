@@ -1,4 +1,45 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // 前端缓存
+    const cache = new Map();
+    const CACHE_EXPIRY = 5 * 60 * 1000; // 5分钟缓存
+
+    // 获取缓存的数据
+    function getCachedData(key) {
+        const item = cache.get(key);
+        if (item && Date.now() - item.timestamp < CACHE_EXPIRY) {
+            return item.data;
+        }
+        cache.delete(key);
+        return null;
+    }
+
+    // 设置缓存数据
+    function setCachedData(key, data) {
+        cache.set(key, {
+            data: data,
+            timestamp: Date.now()
+        });
+    }
+
+    // 防抖函数
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+
+    // 显示加载状态
+    function showLoading() {
+        const resultsList = document.getElementById('results-list');
+        resultsList.innerHTML = '<div class="loading">Loading...</div>';
+    }
+
     // API URL配置 - 本地开发使用相对路径，生产环境使用绝对URL
     const getApiUrl = () => {
         const hostname = window.location.hostname;
@@ -203,6 +244,13 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('task').value = selectedTask;
     }
 
+    // 优化的搜索功能 - 添加防抖
+    const debouncedSearch = debounce(() => {
+        keywords = document.getElementById('keywords').value.trim();
+        currentPage = 1;
+        fetchResults();
+    }, 300);
+
     // 处理表单提交
     form.addEventListener('submit', function(e) {
         e.preventDefault();
@@ -210,6 +258,9 @@ document.addEventListener('DOMContentLoaded', () => {
         currentPage = 1;
         fetchResults();
     });
+
+    // 实时搜索（防抖）
+    document.getElementById('keywords').addEventListener('input', debouncedSearch);
 
     // 处理上一页按钮
     prevPageBtn.addEventListener('click', function() {
@@ -233,7 +284,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fetchResults();
     });
 
-    // 获取并显示搜索结果
+    // 获取并显示搜索结果 - 优化版本带缓存
     function fetchResults() {
         const params = new URLSearchParams({
             keywords: keywords,
@@ -242,9 +293,33 @@ document.addEventListener('DOMContentLoaded', () => {
             page: currentPage
         });
 
+        const cacheKey = params.toString();
+        
+        // 检查缓存
+        const cachedData = getCachedData(cacheKey);
+        if (cachedData) {
+            displayResults(cachedData.results);
+            resultsCount.textContent = `Search Results: ${cachedData.results_count} total items (${cachedData.results.length} items on this page)`;
+            totalPages = cachedData.total_pages;
+            populatePageSelector();
+            updatePaginationButtons();
+            return;
+        }
+
+        // 显示加载状态
+        showLoading();
+
         fetch(`${apiUrl}/api/search?${params.toString()}`)
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
+                // 缓存结果
+                setCachedData(cacheKey, data);
+                
                 displayResults(data.results);
                 resultsCount.textContent = `Search Results: ${data.results_count} total items (${data.results.length} items on this page)`;
                 totalPages = data.total_pages;
@@ -253,7 +328,7 @@ document.addEventListener('DOMContentLoaded', () => {
             })
             .catch(error => {
                 console.error('Error fetching results:', error);
-                resultsList.innerHTML = '<p>Error fetching results.</p>';
+                resultsList.innerHTML = '<p>Error fetching results. Please try again.</p>';
                 resultsCount.textContent = 'Search Results: 0 total items (0 items on this page)';
             });
     }
@@ -268,10 +343,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // 构建 arXiv ID 和标题
                 let title = '';
+                let displayTitle = result.title;
+                
+                // 处理空标题的情况
+                if (!displayTitle || displayTitle === 'None' || displayTitle === 'null' || displayTitle.trim() === '') {
+                    if (result.arxiv_id) {
+                        displayTitle = `arXiv:${result.arxiv_id}`;
+                    } else if (result.dataset_name) {
+                        displayTitle = `Dataset Study: ${result.dataset_name}`;
+                    } else {
+                        displayTitle = 'Research Study';
+                    }
+                }
+                
                 if (result.arxiv_id) {
-                    title = `<h4>${result.title || 'Untitled'}</h4>`;
+                    title = `<h4><a href="https://arxiv.org/abs/${result.arxiv_id}" target="_blank">${displayTitle}</a></h4>`;
                 } else {
-                    title = `<h4>${result.title || 'Untitled'}</h4>`;
+                    title = `<h4>${displayTitle}</h4>`;
                 }
 
                 // 处理Dataset显示逻辑：如果有Dataset Entity显示Dataset Entity，否则显示Dataset Name
