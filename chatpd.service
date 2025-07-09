@@ -1,0 +1,28 @@
+[Unit]
+Description=ChatPD Web Application
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/root/web_app/web_chatpd
+Environment=FLASK_ENV=production
+Environment=PYTHONPATH=/root/web_app/web_chatpd
+ExecStart=/usr/bin/python3 -m src.web_app.search_engine
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=chatpd
+
+# 安全设置
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/root/web_app/web_chatpd/logs
+ReadWritePaths=/root/web_app/web_chatpd/data
+
+[Install]
+WantedBy=multi-user.target 
