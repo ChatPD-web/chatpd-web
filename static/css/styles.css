@@ -506,6 +506,25 @@ body {
     font-size: 1.1rem;
 }
 
+/* 错误消息样式 */
+.error-message {
+    background-color: #fee;
+    border: 1px solid #fcc;
+    border-radius: 5px;
+    padding: 15px;
+    margin: 20px 0;
+    color: #c33;
+}
+
+.error-message p {
+    margin: 5px 0;
+}
+
+.error-message small {
+    color: #999;
+    font-size: 0.8em;
+}
+
 .loading::after {
     content: "";
     display: inline-block;

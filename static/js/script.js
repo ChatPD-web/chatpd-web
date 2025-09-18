@@ -37,7 +37,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // 显示加载状态
     function showLoading() {
         const resultsList = document.getElementById('results-list');
-        resultsList.innerHTML = '<div class="loading">Loading...</div>';
+        resultsList.innerHTML = '<div class="loading">Loading data from API server...</div>';
+    }
+
+    // 显示连接状态
+    function showConnectionStatus(message, isError = false) {
+        const resultsList = document.getElementById('results-list');
+        const statusClass = isError ? 'error-message' : 'loading';
+        resultsList.innerHTML = `<div class="${statusClass}">${message}</div>`;
     }
 
     // API URL配置 - 本地开发使用相对路径，生产环境使用绝对URL
@@ -55,7 +62,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
     
-    const apiUrl = getApiUrl();
+    let apiUrl = getApiUrl();
+    
+    // Fallback API URLs to try if the primary fails
+    const fallbackUrls = [
+        'https://testweb.241814.xyz:5000',
+        'http://testweb.241814.xyz:5000'  // HTTP fallback
+    ];
+    let currentFallbackIndex = 0;
     
     // Get base URL for navigation links
     const getBaseUrl = () => {
@@ -309,15 +323,34 @@ document.addEventListener('DOMContentLoaded', () => {
         // 显示加载状态
         showLoading();
 
-        fetch(`${apiUrl}/api/search?${params.toString()}`)
+        const fullUrl = `${apiUrl}/api/search?${params.toString()}`;
+        console.log('Making API request to:', fullUrl);
+        console.log('API URL configured as:', apiUrl);
+        console.log('Current hostname:', window.location.hostname);
+
+        fetchWithFallback(fullUrl, params);
+    }
+
+    // 尝试使用备用URL的fetch函数
+    function fetchWithFallback(originalUrl, params, fallbackIndex = 0) {
+        const currentUrl = fallbackIndex === 0 ? originalUrl : `${fallbackUrls[fallbackIndex - 1]}/api/search?${params.toString()}`;
+        
+        console.log(`Attempting fetch with URL (attempt ${fallbackIndex + 1}):`, currentUrl);
+        
+        fetch(currentUrl)
             .then(response => {
+                console.log('API Response status:', response.status);
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    throw new Error(`HTTP error! status: ${response.status}, statusText: ${response.statusText}`);
                 }
                 return response.json();
             })
             .then(data => {
+                console.log('API Response data:', data);
+                console.log('Results count:', data.results_count);
+                
                 // 缓存结果
+                const cacheKey = params.toString();
                 setCachedData(cacheKey, data);
                 
                 displayResults(data.results);
@@ -327,8 +360,44 @@ document.addEventListener('DOMContentLoaded', () => {
                 updatePaginationButtons();
             })
             .catch(error => {
-                console.error('Error fetching results:', error);
-                resultsList.innerHTML = '<p>Error fetching results. Please try again.</p>';
+                console.error(`Error with attempt ${fallbackIndex + 1}:`, error);
+                
+                // Try next fallback URL if available
+                if (fallbackIndex < fallbackUrls.length) {
+                    console.log(`Trying fallback URL ${fallbackIndex + 1}...`);
+                    showConnectionStatus(`Connection failed. Trying alternative server (attempt ${fallbackIndex + 2}/${fallbackUrls.length + 1})...`);
+                    fetchWithFallback(originalUrl, params, fallbackIndex + 1);
+                    return;
+                }
+                
+                // All attempts failed, show error
+                console.error('All API attempts failed');
+                console.error('Original URL:', originalUrl);
+                console.error('Fallback URLs tried:', fallbackUrls);
+                
+                let errorMessage = 'Unable to connect to the API server. ';
+                if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+                    errorMessage += 'This might be due to network issues, CORS policy, or the server being unavailable. ';
+                } else if (error.message.includes('HTTP error')) {
+                    errorMessage += `Server error: ${error.message}. `;
+                } else {
+                    errorMessage += `Error: ${error.message}. `;
+                }
+                
+                errorMessage += `Tried ${fallbackIndex + 1} different endpoints.`;
+                
+                resultsList.innerHTML = `<div class="error-message">
+                    <p>${errorMessage}</p>
+                    <button onclick="window.location.reload()" style="margin: 10px 0; padding: 8px 16px; background: #4f46e5; color: white; border: none; border-radius: 4px; cursor: pointer;">Retry</button>
+                    <p><small>Last attempted URL: ${currentUrl}</small></p>
+                    <p><small>Check browser console for detailed logs.</small></p>
+                    <details>
+                        <summary>Technical Details</summary>
+                        <p><small>Original URL: ${originalUrl}</small></p>
+                        <p><small>Fallback URLs: ${fallbackUrls.join(', ')}</small></p>
+                        <p><small>Error: ${error.message}</small></p>
+                    </details>
+                </div>`;
                 resultsCount.textContent = 'Search Results: 0 total items (0 items on this page)';
             });
     }
