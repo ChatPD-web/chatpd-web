@@ -4,19 +4,26 @@ After=network.target
 Wants=network.target
 
 [Service]
-Type=simple
+Type=notify
 User=root
 Group=root
 WorkingDirectory=/root/web_app/web_chatpd
 Environment=FLASK_ENV=production
 Environment=PYTHONPATH=/root/web_app/web_chatpd
-ExecStart=/usr/bin/python3 -m src.web_app.search_engine
+ExecStart=/usr/local/bin/gunicorn -c gunicorn_config.py src.web_app.search_engine:app
 ExecReload=/bin/kill -s HUP $MAINPID
 Restart=always
 RestartSec=10
+StartLimitInterval=300
+StartLimitBurst=5
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=chatpd
+
+# 健康检查配置
+TimeoutStartSec=60
+TimeoutStopSec=30
+WatchdogSec=30
 
 # 安全设置
 NoNewPrivileges=true
