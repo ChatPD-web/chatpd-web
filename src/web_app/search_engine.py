@@ -551,6 +551,11 @@ def filters_api():
         app.logger.error(f"Filters API error: {str(e)}")
         return json_response({"error": "Internal server error"}, 500)
 
+        response = {"top_data_types": top_data_types_list, "top_tasks": top_tasks_list}
+        return json_response(response)
+    except Exception as e:
+        app.logger.error(f"Filters API error: {str(e)}")
+        return json_response({"error": "Internal server error"}, 500)
 
 @app.route("/api/data-status", methods=["GET"])
 def data_status_api():
