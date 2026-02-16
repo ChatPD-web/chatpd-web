@@ -307,11 +307,15 @@ def filter_data(data_type=None, task=None, keywords=None, page=1, per_page=10, s
     :param per_page: 每页条数
     :return: 过滤后的数据和总页数
     """
-    sort_by = (sort_by or "title").strip()
-    sort_order = (sort_order or "asc").strip().lower()
+    sort_by = (sort_by or "latest").strip()
+    sort_order = (sort_order or "desc").strip().lower()
     if sort_by not in SORTABLE_FIELDS:
-        sort_by = "title"
+        sort_by = "latest"
     if sort_order not in {"asc", "desc"}:
+        sort_order = "desc"
+    if sort_by == "latest":
+        sort_order = "desc"
+    elif sort_by == "earliest":
         sort_order = "asc"
     sort_column = SORTABLE_FIELDS[sort_by]
 
@@ -357,7 +361,7 @@ def filter_data(data_type=None, task=None, keywords=None, page=1, per_page=10, s
         count_query = f"SELECT COUNT(*) as count {base_query}{where_clause}"
         cursor.execute(count_query, params)
         total_count = cursor.fetchone()["count"]
-        total_pages = ceil(total_count / per_page)
+        total_pages = ceil(total_count / per_page) if total_count else 0
         
         # 主查询 - 只获取需要的字段，并处理空标题
         select_fields = """
@@ -486,71 +490,47 @@ def serve_static(filename):
 
 @app.route("/api/search", methods=["GET"])
 def search_api():
+    """兼容旧参数的简化查询接口，内部复用统一查询服务。"""
     try:
         keywords = request.args.get("keywords", "").strip()
         data_type = request.args.get("data_type", "All")
         task = request.args.get("task", "All")
-        sort_by = request.args.get("sort_by", "title").strip()
-        sort_order = request.args.get("sort_order", "asc").strip().lower()
-        include_stats = request.args.get("include_stats", "false").lower() in {"1", "true", "yes", "on"}
+        sort_by = request.args.get("sort_by", "latest").strip()
+        sort_order = request.args.get("sort_order", "desc").strip().lower()
+        if sort_by not in SORTABLE_FIELDS:
+            sort_by = "latest"
+        if sort_order not in {"asc", "desc"}:
+            sort_order = "desc"
+        include_stats = request.args.get("include_stats", "true").lower() in {"1", "true", "yes", "on"}
         page = max(int(request.args.get("page", 1)), 1)
         per_page = min(int(request.args.get("per_page", 10)), 50)  # 限制最大页面大小
+        arxiv_from = request.args.get("arxiv_from", "").strip()
+        arxiv_to = request.args.get("arxiv_to", "").strip()
 
-        filtered_data, results_count, total_pages, where_clause, where_params = filter_data(
-            data_type,
-            task,
-            keywords,
-            page,
-            per_page,
+        conditions = []
+        if data_type and data_type != "All":
+            conditions.append({"field": "data_type", "value": data_type, "match_mode": "exact"})
+        if task and task != "All":
+            conditions.append({"field": "task", "value": task, "match_mode": "exact"})
+
+        response = search_records(
+            q=keywords,
+            field="all",
+            match_mode="contains",
+            page=page,
+            per_page=per_page,
+            logic="and",
+            conditions=conditions,
             sort_by=sort_by,
             sort_order=sort_order,
+            include_stats=include_stats,
+            arxiv_from=arxiv_from,
+            arxiv_to=arxiv_to,
         )
-
-        response = {
-            "results": filtered_data,
-            "results_count": results_count,
-            "total_pages": total_pages,
-            "current_page": page,
-            "query_meta": {
-                "sort_by": sort_by if sort_by in SORTABLE_FIELDS else "title",
-                "sort_order": sort_order if sort_order in {"asc", "desc"} else "asc",
-                "data_type": data_type,
-                "task": task,
-                "keywords": keywords,
-            },
-        }
-        if include_stats:
-            conn = get_db_connection()
-            try:
-                cursor = conn.cursor()
-                task_query = f"""
-                    SELECT task as name, COUNT(*) as count
-                    FROM dataset_usage
-                    {where_clause} {"AND" if where_clause else "WHERE"} task IS NOT NULL AND task != ""
-                    GROUP BY task
-                    ORDER BY count DESC, name ASC
-                    LIMIT 10
-                """
-                cursor.execute(task_query, where_params)
-                task_distribution = [dict(row) for row in cursor.fetchall()]
-
-                data_type_query = f"""
-                    SELECT data_type as name, COUNT(*) as count
-                    FROM dataset_usage
-                    {where_clause} {"AND" if where_clause else "WHERE"} data_type IS NOT NULL AND data_type != ""
-                    GROUP BY data_type
-                    ORDER BY count DESC, name ASC
-                    LIMIT 10
-                """
-                cursor.execute(data_type_query, where_params)
-                data_type_distribution = [dict(row) for row in cursor.fetchall()]
-            finally:
-                return_db_connection(conn)
-            response["stats"] = {
-                "task_distribution": task_distribution,
-                "data_type_distribution": data_type_distribution,
-            }
+        response["query_meta"]["api_mode"] = "simple_compat"
         return json_response(response)
+    except ValueError as e:
+        return json_response({"error": str(e)}, 400)
     except Exception as e:
         app.logger.error(f"Search API error: {str(e)}")
         return json_response({"error": "Internal server error"}, 500)
@@ -594,12 +574,14 @@ def unified_query_api():
     field = request.args.get("field", "all").strip()
     match_mode = request.args.get("match_mode", "contains").strip()
     logic = request.args.get("logic", "and").strip().lower()
-    sort_by = request.args.get("sort_by", "title").strip()
-    sort_order = request.args.get("sort_order", "asc").strip().lower()
-    include_stats = request.args.get("include_stats", "false").lower() in {"1", "true", "yes", "on"}
+    sort_by = request.args.get("sort_by", "latest").strip()
+    sort_order = request.args.get("sort_order", "desc").strip().lower()
+    include_stats = request.args.get("include_stats", "true").lower() in {"1", "true", "yes", "on"}
     conditions_raw = request.args.get("conditions", "").strip()
     page = max(int(request.args.get("page", 1)), 1)
     per_page = min(int(request.args.get("per_page", 10)), 50)
+    arxiv_from = request.args.get("arxiv_from", "").strip()
+    arxiv_to = request.args.get("arxiv_to", "").strip()
 
     if field not in QUERYABLE_FIELDS:
         return json_response(
@@ -665,8 +647,12 @@ def unified_query_api():
                 sort_by=sort_by,
                 sort_order=sort_order,
                 include_stats=include_stats,
+                arxiv_from=arxiv_from,
+                arxiv_to=arxiv_to,
             )
         )
+    except ValueError as e:
+        return json_response({"error": str(e)}, 400)
     except Exception as e:
         app.logger.error(f"Unified query API error: {str(e)}")
         return json_response({"error": "Internal server error"}, 500)

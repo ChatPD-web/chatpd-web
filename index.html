@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="ChatPD provides simple search and browsing for dataset usage in academic papers.">
     <title>ChatPD</title>
     <link id="css-link" rel="stylesheet" href="static/css/styles.css">
     <script src="static/js/script.js"></script>
@@ -21,49 +22,28 @@
                 <h3>Search</h3>
                 <form id="search-form">
                     <input type="text" id="keywords" name="keywords" placeholder="Enter keywords / arXiv ID">
-                    <input type="hidden" id="data_type" name="data_type" value="All">
-                    <input type="hidden" id="task" name="task" value="All">
+                    <div class="simple-controls">
+                        <div class="control-field">
+                            <label for="sort-by">Sort by</label>
+                            <select id="sort-by" name="sort_by">
+                                <option value="latest" selected>Latest</option>
+                                <option value="earliest">Earliest</option>
+                            </select>
+                        </div>
+                        <div class="control-field">
+                            <label for="arxiv-from">From</label>
+                            <input type="month" id="arxiv-from" name="arxiv_from">
+                        </div>
+                        <div class="control-field">
+                            <label for="arxiv-to">To</label>
+                            <input type="month" id="arxiv-to" name="arxiv_to">
+                        </div>
+                    </div>
                     <div class="search-actions">
                         <button type="submit">Search</button>
                         <button type="button" id="reset-filters">Reset</button>
                     </div>
                 </form>
-                <button type="button" id="toggle-advanced" class="secondary-btn" aria-expanded="false">
-                    Advanced Search
-                </button>
-                <div id="advanced-search-panel" class="advanced-panel" hidden>
-                    <div class="advanced-toolbar">
-                        <label for="condition-logic">Condition Logic</label>
-                        <select id="condition-logic">
-                            <option value="and" selected>AND</option>
-                            <option value="or">OR</option>
-                        </select>
-                    </div>
-                    <div id="advanced-conditions"></div>
-                    <button type="button" id="add-condition" class="secondary-btn">+ Add Condition</button>
-                    <div class="advanced-sort">
-                        <label for="sort-by">Sort By</label>
-                        <select id="sort-by">
-                            <option value="title" selected>Title</option>
-                            <option value="arxiv_id">arXiv ID</option>
-                            <option value="dataset_name">Dataset Name</option>
-                            <option value="dataset_entity">Dataset Entity</option>
-                            <option value="task">Task</option>
-                            <option value="data_type">Data Type</option>
-                            <option value="scale">Scale</option>
-                            <option value="location">Location</option>
-                        </select>
-                        <label for="sort-order">Order</label>
-                        <select id="sort-order">
-                            <option value="asc" selected>Ascending</option>
-                            <option value="desc">Descending</option>
-                        </select>
-                    </div>
-                    <label class="inline-checkbox">
-                        <input type="checkbox" id="include-stats" checked>
-                        Include result statistics
-                    </label>
-                </div>
             </section>
 
             <section class="filter-container" id="data-type-filter">
@@ -79,13 +59,12 @@
 
         <main class="results">
             <section id="data-status" class="data-status">
-                <div id="data-status-text">数据状态加载中...</div>
+                <div id="data-status-text">Data status loading...</div>
                 <div>
-                    <button id="refresh-data-status" type="button">刷新数据状态</button>
+                    <button id="refresh-data-status" type="button">Refresh Status</button>
                 </div>
             </section>
 
-            <section id="search-stats" class="result-stats" aria-live="polite"></section>
             <h3 id="results-count">Search Results: 0 total items (0 items on this page)</h3>
             <div id="results-list">
                 <p>No results found.</p>
@@ -93,7 +72,7 @@
             <div class="pagination-container">
                 <div class="pagination">
                     <button id="prev-page" disabled>&laquo; Previous</button>
-                    <select id="page-selector" aria-label="Select page"></select>
+                    <span id="page-info" aria-live="polite">Page 1 / 1</span>
                     <button id="next-page" disabled>Next &raquo;</button>
                 </div>
             </div>

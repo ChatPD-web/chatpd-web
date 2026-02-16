@@ -28,10 +28,22 @@ QUERYABLE_FIELDS = {
 
 QUERY_MATCH_MODES = {"contains", "exact", "prefix"}
 QUERY_LOGIC_MODES = {"and", "or"}
+DEFAULT_SORT_BY = "latest"
+DEFAULT_SORT_ORDER = "desc"
+
+ARXIV_TIME_SQL = """
+CASE
+    WHEN arxiv_id GLOB '[0-9][0-9][0-9][0-9].[0-9]*'
+    THEN CAST(REPLACE(arxiv_id, '.', '') AS INTEGER)
+    ELSE NULL
+END
+"""
 
 SORTABLE_FIELDS = {
     "title": "title",
     "arxiv_id": "arxiv_id",
+    "latest": ARXIV_TIME_SQL,
+    "earliest": ARXIV_TIME_SQL,
     "dataset_name": "dataset_name",
     "dataset_entity": "dataset_entity",
     "task": "task",
@@ -101,6 +113,25 @@ def _build_query_condition(q: str, field: str, match_mode: str) -> Tuple[str, Li
     return f"{column} {operator} ?", [term]
 
 
+def _parse_arxiv_month_key(month_value: Optional[str]) -> Optional[int]:
+    if month_value is None:
+        return None
+    value = month_value.strip()
+    if not value:
+        return None
+    if len(value) != 7 or value[4] != "-":
+        raise ValueError("Invalid arxiv month format, expected YYYY-MM")
+    year_part = value[:4]
+    month_part = value[5:]
+    if not year_part.isdigit() or not month_part.isdigit():
+        raise ValueError("Invalid arxiv month format, expected YYYY-MM")
+    year = int(year_part)
+    month = int(month_part)
+    if year < 1990 or year > 2099 or month < 1 or month > 12:
+        raise ValueError("Invalid arxiv month range")
+    return (year % 100) * 100 + month
+
+
 def _build_condition_from_rule(rule: Dict) -> Tuple[str, List[str]]:
     field = (rule.get("field") or "all").strip()
     value = (rule.get("value") or "").strip()
@@ -109,12 +140,16 @@ def _build_condition_from_rule(rule: Dict) -> Tuple[str, List[str]]:
 
 
 def _validate_sort(sort_by: str, sort_order: str) -> Tuple[str, str]:
-    sort_by = (sort_by or "title").strip()
-    sort_order = (sort_order or "asc").strip().lower()
+    sort_by = (sort_by or DEFAULT_SORT_BY).strip()
+    sort_order = (sort_order or DEFAULT_SORT_ORDER).strip().lower()
     if sort_by not in SORTABLE_FIELDS:
         raise ValueError("Invalid sort_by")
     if sort_order not in {"asc", "desc"}:
         raise ValueError("Invalid sort_order")
+    if sort_by == "latest":
+        sort_order = "desc"
+    elif sort_by == "earliest":
+        sort_order = "asc"
     return sort_by, sort_order
 
 
@@ -193,9 +228,11 @@ def search_records(
     per_page: int = 10,
     logic: str = "and",
     conditions: Optional[List[Dict]] = None,
-    sort_by: str = "title",
-    sort_order: str = "asc",
+    sort_by: str = DEFAULT_SORT_BY,
+    sort_order: str = DEFAULT_SORT_ORDER,
     include_stats: bool = False,
+    arxiv_from: Optional[str] = None,
+    arxiv_to: Optional[str] = None,
 ) -> Dict:
     q = (q or "").strip()
     page = max(int(page), 1)
@@ -217,6 +254,29 @@ def search_records(
         logic=logic,
         conditions=conditions,
     )
+
+    arxiv_from_key = _parse_arxiv_month_key(arxiv_from)
+    arxiv_to_key = _parse_arxiv_month_key(arxiv_to)
+    if arxiv_from_key is not None and arxiv_to_key is not None and arxiv_from_key > arxiv_to_key:
+        raise ValueError("arxiv_from must be earlier than or equal to arxiv_to")
+
+    time_sql_parts: List[str] = []
+    time_params: List[int] = []
+    if arxiv_from_key is not None:
+        time_sql_parts.append(f"({ARXIV_TIME_SQL}) >= ?")
+        time_params.append(arxiv_from_key * 100)
+    if arxiv_to_key is not None:
+        time_sql_parts.append(f"({ARXIV_TIME_SQL}) <= ?")
+        time_params.append(arxiv_to_key * 100 + 99)
+
+    if time_sql_parts:
+        time_clause = " AND ".join(time_sql_parts)
+        if where_clause:
+            where_clause = f"{where_clause} AND {time_clause}"
+        else:
+            where_clause = f" WHERE {time_clause}"
+        params.extend(time_params)
+
     sort_column = SORTABLE_FIELDS[sort_by]
 
     conn = get_db_connection()
@@ -261,6 +321,8 @@ def search_records(
         "results_count": total_count,
         "total_pages": total_pages,
         "current_page": page,
+        "per_page": per_page,
+        "returned_count": len(rows),
         "query_meta": {
             "query": q,
             "field": field,
@@ -269,6 +331,9 @@ def search_records(
             "conditions": effective_rules,
             "sort_by": sort_by,
             "sort_order": sort_order,
+            "include_stats": include_stats,
+            "arxiv_from": arxiv_from.strip() if isinstance(arxiv_from, str) else None,
+            "arxiv_to": arxiv_to.strip() if isinstance(arxiv_to, str) else None,
         },
     }
     if stats is not None:

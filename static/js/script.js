@@ -1,20 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
     const cache = new Map();
     const CACHE_EXPIRY = 5 * 60 * 1000;
-    const FIELD_OPTIONS = [
-        { value: "all", label: "All Fields" },
-        { value: "arxiv_id", label: "arXiv ID" },
-        { value: "title", label: "Title" },
-        { value: "dataset_name", label: "Dataset Name" },
-        { value: "dataset_entity", label: "Dataset Entity" },
-        { value: "task", label: "Task" },
-        { value: "data_type", label: "Data Type" },
-    ];
-    const MATCH_OPTIONS = [
-        { value: "contains", label: "Contains" },
-        { value: "exact", label: "Exact" },
-        { value: "prefix", label: "Prefix" },
-    ];
 
     const getApiUrl = () => {
         const hostname = window.location.hostname;
@@ -40,11 +26,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const form = document.getElementById("search-form");
     const keywordsInput = document.getElementById("keywords");
+    const sortByInput = document.getElementById("sort-by");
+    const arxivFromInput = document.getElementById("arxiv-from");
+    const arxivToInput = document.getElementById("arxiv-to");
     const resetButton = document.getElementById("reset-filters");
     const resultsList = document.getElementById("results-list");
     const resultsCount = document.getElementById("results-count");
-    const resultStats = document.getElementById("search-stats");
-    const pageSelector = document.getElementById("page-selector");
+    const pageInfo = document.getElementById("page-info");
     const prevPageBtn = document.getElementById("prev-page");
     const nextPageBtn = document.getElementById("next-page");
     const dataTypeFilter = document.getElementById("data-type-filter");
@@ -52,19 +40,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const dataStatusText = document.getElementById("data-status-text");
     const refreshDataStatusBtn = document.getElementById("refresh-data-status");
 
-    const toggleAdvancedBtn = document.getElementById("toggle-advanced");
-    const advancedPanel = document.getElementById("advanced-search-panel");
-    const addConditionBtn = document.getElementById("add-condition");
-    const advancedConditions = document.getElementById("advanced-conditions");
-    const conditionLogic = document.getElementById("condition-logic");
-    const includeStatsInput = document.getElementById("include-stats");
-    const sortByInput = document.getElementById("sort-by");
-    const sortOrderInput = document.getElementById("sort-order");
-
     let currentPage = 1;
     let totalPages = 1;
     let selectedDataType = "All";
     let selectedTask = "All";
+    let activeRequestController = null;
 
     function getCachedData(key) {
         const item = cache.get(key);
@@ -115,35 +95,20 @@ document.addEventListener("DOMContentLoaded", () => {
         resultsList.innerHTML = '<div class="loading">Loading...</div>';
     }
 
-    function formatSize(bytes) {
-        if (!bytes || bytes <= 0) return "0 B";
-        const units = ["B", "KB", "MB", "GB"];
-        let size = bytes;
-        let idx = 0;
-        while (size >= 1024 && idx < units.length - 1) {
-            size /= 1024;
-            idx += 1;
-        }
-        return `${size.toFixed(1)} ${units[idx]}`;
-    }
-
     function fetchDataStatus() {
-        dataStatusText.textContent = "数据状态加载中...";
+        dataStatusText.textContent = "Data status loading...";
         fetch(`${apiUrl}/api/data-status`)
             .then((response) => response.json())
             .then((data) => {
-                const sourceMtime = data.source_json_mtime || "N/A";
-                const dbMtime = data.database_mtime || "N/A";
                 const totalRecords = Number(data.total_records || 0).toLocaleString();
                 const totalDatasets = Number(data.total_datasets || 0).toLocaleString();
-                const sourceSize = formatSize(data.source_json_size_bytes || 0);
-                const dbSize = formatSize(data.database_size_bytes || 0);
+                const dbMtime = data.database_mtime || "N/A";
                 dataStatusText.textContent =
-                    `当前数据源: from_db | 记录数: ${totalRecords} | 数据集数: ${totalDatasets} | JSON更新时间: ${sourceMtime} | DB更新时间: ${dbMtime} | JSON大小: ${sourceSize} | DB大小: ${dbSize}`;
+                    `Updated: ${dbMtime} | Records: ${totalRecords} | Datasets: ${totalDatasets}`;
             })
             .catch((error) => {
                 console.error("Error fetching data status:", error);
-                dataStatusText.textContent = "数据状态获取失败，请稍后重试。";
+                dataStatusText.textContent = "Failed to fetch data status.";
             });
     }
 
@@ -154,75 +119,8 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    function createConditionRow(initial = { field: "all", match_mode: "contains", value: "" }) {
-        const row = document.createElement("div");
-        row.className = "condition-row";
-
-        const fieldSelect = document.createElement("select");
-        fieldSelect.className = "condition-field";
-        FIELD_OPTIONS.forEach((option) => {
-            const optionNode = document.createElement("option");
-            optionNode.value = option.value;
-            optionNode.textContent = option.label;
-            if (option.value === initial.field) optionNode.selected = true;
-            fieldSelect.appendChild(optionNode);
-        });
-
-        const matchSelect = document.createElement("select");
-        matchSelect.className = "condition-match";
-        MATCH_OPTIONS.forEach((option) => {
-            const optionNode = document.createElement("option");
-            optionNode.value = option.value;
-            optionNode.textContent = option.label;
-            if (option.value === initial.match_mode) optionNode.selected = true;
-            matchSelect.appendChild(optionNode);
-        });
-
-        const valueInput = document.createElement("input");
-        valueInput.className = "condition-value";
-        valueInput.type = "text";
-        valueInput.placeholder = "Condition value";
-        valueInput.value = initial.value || "";
-
-        const removeButton = document.createElement("button");
-        removeButton.type = "button";
-        removeButton.className = "remove-condition";
-        removeButton.textContent = "Remove";
-        removeButton.addEventListener("click", () => {
-            row.remove();
-            currentPage = 1;
-            fetchResults();
-        });
-
-        [fieldSelect, matchSelect, valueInput].forEach((node) => {
-            node.addEventListener("change", () => {
-                currentPage = 1;
-                fetchResults();
-            });
-        });
-        valueInput.addEventListener("input", debounce(() => {
-            currentPage = 1;
-            fetchResults();
-        }, 400));
-
-        row.appendChild(fieldSelect);
-        row.appendChild(matchSelect);
-        row.appendChild(valueInput);
-        row.appendChild(removeButton);
-        advancedConditions.appendChild(row);
-    }
-
-    function collectConditions() {
+    function buildConditions() {
         const conditions = [];
-        advancedConditions.querySelectorAll(".condition-row").forEach((row) => {
-            const field = row.querySelector(".condition-field")?.value || "all";
-            const match_mode = row.querySelector(".condition-match")?.value || "contains";
-            const value = (row.querySelector(".condition-value")?.value || "").trim();
-            if (value) {
-                conditions.push({ field, match_mode, value });
-            }
-        });
-
         if (selectedDataType !== "All") {
             conditions.push({ field: "data_type", match_mode: "exact", value: selectedDataType });
         }
@@ -230,28 +128,6 @@ document.addEventListener("DOMContentLoaded", () => {
             conditions.push({ field: "task", match_mode: "exact", value: selectedTask });
         }
         return conditions;
-    }
-
-    function renderStats(stats) {
-        if (!resultStats) return;
-        if (!stats) {
-            resultStats.innerHTML = "";
-            return;
-        }
-
-        const taskTop = (stats.task_distribution || [])
-            .slice(0, 4)
-            .map((item) => `${escapeHtml(item.name)} (${item.count})`)
-            .join(" | ");
-        const dataTypeTop = (stats.data_type_distribution || [])
-            .slice(0, 4)
-            .map((item) => `${escapeHtml(item.name)} (${item.count})`)
-            .join(" | ");
-
-        resultStats.innerHTML = `
-            <div><strong>Top Tasks:</strong> ${taskTop || "N/A"}</div>
-            <div><strong>Top Data Types:</strong> ${dataTypeTop || "N/A"}</div>
-        `;
     }
 
     function populateDataTypeFilter(dataTypes) {
@@ -335,7 +211,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function displayResults(results) {
         if (!results || results.length === 0) {
-            resultsList.innerHTML = "<p>No results found.</p>";
+            resultsList.innerHTML = '<div class="no-results">No results found.</div>';
             return;
         }
 
@@ -347,30 +223,24 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             const titleHtml = result.arxiv_id
-                ? `<h4><a href="https://arxiv.org/abs/${encodeURIComponent(result.arxiv_id)}" target="_blank" rel="noopener noreferrer">${escapeHtml(displayTitle)}</a></h4>`
-                : `<h4>${escapeHtml(displayTitle)}</h4>`;
+                ? `<h3><a href="https://arxiv.org/abs/${encodeURIComponent(result.arxiv_id)}" target="_blank" rel="noopener noreferrer">${escapeHtml(displayTitle)}</a></h3>`
+                : `<h3>${escapeHtml(displayTitle)}</h3>`;
 
-            let datasetHtml = "<p><strong>Dataset Name:</strong> N/A</p>";
+            let datasetHtml = "<p><strong>Dataset:</strong> N/A</p>";
             if (result.dataset_entity) {
                 const datasetUrl = `${baseUrl}/dataset/${encodeURIComponent(result.dataset_entity)}`;
-                datasetHtml = `<p><strong>Dataset Entity:</strong> <a href="${datasetUrl}">${escapeHtml(result.dataset_entity)}</a></p>`;
+                datasetHtml = `<p><strong>Dataset:</strong> <a href="${datasetUrl}">${escapeHtml(result.dataset_entity)}</a></p>`;
             } else if (result.dataset_name) {
-                datasetHtml = `<p><strong>Dataset Name:</strong> ${escapeHtml(result.dataset_name)}</p>`;
+                datasetHtml = `<p><strong>Dataset:</strong> ${escapeHtml(result.dataset_name)}</p>`;
             }
 
             const extraFields = [
                 result.arxiv_id
                     ? `<p><strong>arXiv ID:</strong> <a href="https://arxiv.org/abs/${encodeURIComponent(result.arxiv_id)}" target="_blank" rel="noopener noreferrer">${escapeHtml(result.arxiv_id)}</a></p>`
                     : "",
-                result.dataset_url
-                    ? `<p><strong>Dataset URL:</strong> <a href="${escapeHtml(result.dataset_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(result.dataset_url)}</a></p>`
-                    : "",
                 result.task ? `<p><strong>Task:</strong> ${escapeHtml(result.task)}</p>` : "",
                 result.data_type ? `<p><strong>Data Type:</strong> ${escapeHtml(result.data_type)}</p>` : "",
-                result.scale ? `<p><strong>Data Scale:</strong> ${escapeHtml(result.scale)}</p>` : "",
-                result.location ? `<p><strong>Location:</strong> ${escapeHtml(result.location)}</p>` : "",
                 result.dataset_summary ? `<p><strong>Summary:</strong> ${escapeHtml(result.dataset_summary)}</p>` : "",
-                result.other_info ? `<p><strong>Other Information:</strong> ${escapeHtml(result.other_info)}</p>` : "",
             ]
                 .filter(Boolean)
                 .join("");
@@ -380,28 +250,10 @@ document.addEventListener("DOMContentLoaded", () => {
         resultsList.innerHTML = fragments.join("");
     }
 
-    function populatePageSelector() {
-        pageSelector.innerHTML = "";
-        if (totalPages <= 0) {
-            const option = document.createElement("option");
-            option.value = 1;
-            option.textContent = "Page 1 of 1";
-            pageSelector.appendChild(option);
-            return;
-        }
-        for (let i = 1; i <= totalPages; i += 1) {
-            const option = document.createElement("option");
-            option.value = i;
-            option.textContent = `Page ${i} of ${totalPages}`;
-            if (i === currentPage) option.selected = true;
-            pageSelector.appendChild(option);
-        }
-    }
-
-    function updatePaginationButtons() {
+    function updatePagination() {
         prevPageBtn.disabled = currentPage <= 1;
-        nextPageBtn.disabled = currentPage >= totalPages;
-        pageSelector.disabled = totalPages <= 1;
+        nextPageBtn.disabled = currentPage >= totalPages || totalPages === 0;
+        pageInfo.textContent = `Page ${Math.max(currentPage, 1)} / ${Math.max(totalPages, 1)}`;
     }
 
     function buildQueryParams() {
@@ -410,16 +262,22 @@ document.addEventListener("DOMContentLoaded", () => {
             q: keywords,
             field: "all",
             match_mode: "contains",
-            page: currentPage,
-            per_page: 10,
-            logic: conditionLogic.value || "and",
-            sort_by: sortByInput.value || "title",
-            sort_order: sortOrderInput.value || "asc",
-            include_stats: includeStatsInput.checked ? "true" : "false",
+            page: String(currentPage),
+            per_page: "10",
+            sort_by: sortByInput.value || "latest",
+            include_stats: "false",
         });
-        const conditions = collectConditions();
+
+        const conditions = buildConditions();
         if (conditions.length > 0) {
             params.set("conditions", JSON.stringify(conditions));
+        }
+
+        if (arxivFromInput.value) {
+            params.set("arxiv_from", arxivFromInput.value);
+        }
+        if (arxivToInput.value) {
+            params.set("arxiv_to", arxivToInput.value);
         }
         return params;
     }
@@ -430,16 +288,19 @@ document.addEventListener("DOMContentLoaded", () => {
         const cached = getCachedData(cacheKey);
         if (cached) {
             displayResults(cached.results);
-            renderStats(cached.stats);
-            totalPages = cached.total_pages;
+            totalPages = cached.total_pages || 1;
             resultsCount.textContent = `Search Results: ${cached.results_count} total items (${cached.results.length} items on this page)`;
-            populatePageSelector();
-            updatePaginationButtons();
+            updatePagination();
             return;
         }
 
+        if (activeRequestController) {
+            activeRequestController.abort();
+        }
+        activeRequestController = new AbortController();
+
         showLoading();
-        fetch(`${apiUrl}/api/query?${params.toString()}`)
+        fetch(`${apiUrl}/api/query?${params.toString()}`, { signal: activeRequestController.signal })
             .then((response) => {
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 return response.json();
@@ -447,17 +308,17 @@ document.addEventListener("DOMContentLoaded", () => {
             .then((data) => {
                 setCachedData(cacheKey, data);
                 displayResults(data.results);
-                renderStats(data.stats);
                 totalPages = data.total_pages || 1;
                 resultsCount.textContent = `Search Results: ${data.results_count} total items (${data.results.length} items on this page)`;
-                populatePageSelector();
-                updatePaginationButtons();
+                updatePagination();
             })
             .catch((error) => {
+                if (error.name === "AbortError") return;
                 console.error("Error fetching results:", error);
-                resultsList.innerHTML = "<p>Error fetching results. Please try again.</p>";
+                resultsList.innerHTML = '<div class="error">Error fetching results. Please try again.</div>';
                 resultsCount.textContent = "Search Results: 0 total items (0 items on this page)";
-                renderStats(null);
+                totalPages = 1;
+                updatePagination();
             });
     }
 
@@ -472,6 +333,19 @@ document.addEventListener("DOMContentLoaded", () => {
         fetchResults();
     });
     keywordsInput.addEventListener("input", debouncedSearch);
+    sortByInput.addEventListener("change", () => {
+        currentPage = 1;
+        fetchResults();
+    });
+    arxivFromInput.addEventListener("change", () => {
+        currentPage = 1;
+        fetchResults();
+    });
+    arxivToInput.addEventListener("change", () => {
+        currentPage = 1;
+        fetchResults();
+    });
+
     prevPageBtn.addEventListener("click", () => {
         if (currentPage > 1) {
             currentPage -= 1;
@@ -484,44 +358,24 @@ document.addEventListener("DOMContentLoaded", () => {
             fetchResults();
         }
     });
-    pageSelector.addEventListener("change", () => {
-        currentPage = parseInt(pageSelector.value, 10) || 1;
-        fetchResults();
-    });
 
-    toggleAdvancedBtn.addEventListener("click", () => {
-        const isHidden = advancedPanel.hidden;
-        advancedPanel.hidden = !isHidden;
-        toggleAdvancedBtn.setAttribute("aria-expanded", String(isHidden));
-    });
-    addConditionBtn.addEventListener("click", () => createConditionRow());
-    [conditionLogic, sortByInput, sortOrderInput, includeStatsInput].forEach((node) => {
-        node.addEventListener("change", () => {
-            currentPage = 1;
-            fetchResults();
-        });
-    });
     resetButton.addEventListener("click", () => {
         keywordsInput.value = "";
-        conditionLogic.value = "and";
-        sortByInput.value = "title";
-        sortOrderInput.value = "asc";
-        includeStatsInput.checked = true;
+        sortByInput.value = "latest";
+        arxivFromInput.value = "";
+        arxivToInput.value = "";
         selectedDataType = "All";
         selectedTask = "All";
         updateActiveFilter(dataTypeFilter, dataTypeFilter.querySelector('a[data-type="All"]'));
         updateActiveFilter(taskFilter, taskFilter.querySelector('a[data-task="All"]'));
-        advancedConditions.innerHTML = "";
-        createConditionRow();
         currentPage = 1;
         fetchResults();
     });
 
     updateNavigationAndAssets();
-    createConditionRow();
     initializeFilters();
     fetchDataStatus();
     refreshDataStatusBtn?.addEventListener("click", fetchDataStatus);
+    updatePagination();
     fetchResults();
 });
-
