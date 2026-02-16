@@ -9,9 +9,18 @@ import os
 import threading
 from functools import lru_cache
 import time
+from datetime import datetime
 from .config import (
     SSL_CERT_PATH, SSL_KEY_PATH, SERVER_ADDRESS, SERVER_PORT,
     ENV, SERVER_URL
+)
+from .query_service import (
+    QUERY_LOGIC_MODES,
+    QUERYABLE_FIELDS,
+    QUERY_MATCH_MODES,
+    SORTABLE_FIELDS,
+    get_records_by_arxiv_id,
+    search_records,
 )
 
 # 数据库连接池
@@ -42,9 +51,13 @@ class DatabasePool:
             else:
                 conn.close()
 
-# 全局连接池
-db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data/chatpd_data.db")
+# 全局路径与连接池
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+DATA_SOURCE_JSON = os.path.join(PROJECT_ROOT, "data/final_product/ChatPD_WebData_from_db.json")
+db_path = os.path.join(PROJECT_ROOT, "data/chatpd_data.db")
 db_pool = DatabasePool(db_path)
+cache_state_lock = threading.Lock()
+cached_db_mtime = None
 
 # 创建数据库索引
 def create_indexes():
@@ -86,6 +99,53 @@ def return_db_connection(conn):
     将连接返回到连接池
     """
     db_pool.return_connection(conn)
+
+
+def format_timestamp(ts):
+    if ts is None:
+        return None
+    return datetime.fromtimestamp(ts).isoformat(timespec="seconds")
+
+
+def get_data_status():
+    """返回当前系统数据源与数据库状态，用于前端展示“最新数据”信息。"""
+    source_exists = os.path.exists(DATA_SOURCE_JSON)
+    db_exists = os.path.exists(db_path)
+
+    status = {
+        "source_json_path": DATA_SOURCE_JSON,
+        "source_json_exists": source_exists,
+        "source_json_size_bytes": os.path.getsize(DATA_SOURCE_JSON) if source_exists else 0,
+        "source_json_mtime": format_timestamp(os.path.getmtime(DATA_SOURCE_JSON)) if source_exists else None,
+        "database_path": db_path,
+        "database_exists": db_exists,
+        "database_size_bytes": os.path.getsize(db_path) if db_exists else 0,
+        "database_mtime": format_timestamp(os.path.getmtime(db_path)) if db_exists else None,
+        "total_records": 0,
+        "total_datasets": 0,
+    }
+
+    if not db_exists:
+        return status
+
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) AS count FROM dataset_usage")
+        status["total_records"] = cursor.fetchone()["count"]
+
+        cursor.execute(
+            """
+            SELECT COUNT(DISTINCT dataset_entity) AS count
+            FROM dataset_usage
+            WHERE dataset_entity IS NOT NULL AND dataset_entity != ""
+            """
+        )
+        status["total_datasets"] = cursor.fetchone()["count"]
+    finally:
+        return_db_connection(conn)
+
+    return status
 
 # 获取所有数据
 def get_all_data():
@@ -148,6 +208,7 @@ def get_top_data_types(top_n=15):
     """
     获取出现次数最多的 N 种 data type
     """
+    ensure_cache_fresh()
     return get_top_data_types_cached(top_n)
 
 # 统计 task 的出现次数
@@ -155,7 +216,29 @@ def get_top_tasks(top_n=15):
     """
     获取出现次数最多的 N 种 task
     """
+    ensure_cache_fresh()
     return get_top_tasks_cached(top_n)
+
+
+def ensure_cache_fresh():
+    """
+    当数据库文件发生变化时，清理与统计相关的缓存，确保返回最新数据。
+    """
+    global cached_db_mtime
+
+    if not os.path.exists(db_path):
+        return
+
+    current_mtime = os.path.getmtime(db_path)
+    with cache_state_lock:
+        if cached_db_mtime is None:
+            cached_db_mtime = current_mtime
+            return
+
+        if current_mtime != cached_db_mtime:
+            get_top_data_types_cached.cache_clear()
+            get_top_tasks_cached.cache_clear()
+            cached_db_mtime = current_mtime
 
 
 # 获取数据集列表
@@ -214,7 +297,7 @@ def get_dataset_details(dataset_entity):
 
 
 # 优化的数据过滤逻辑
-def filter_data(data_type=None, task=None, keywords=None, page=1, per_page=10):
+def filter_data(data_type=None, task=None, keywords=None, page=1, per_page=10, sort_by="title", sort_order="asc"):
     """
     根据 data type、task 和关键词过滤数据
     :param data_type: 数据类型（如 Graph、Text 等）
@@ -224,6 +307,18 @@ def filter_data(data_type=None, task=None, keywords=None, page=1, per_page=10):
     :param per_page: 每页条数
     :return: 过滤后的数据和总页数
     """
+    sort_by = (sort_by or "latest").strip()
+    sort_order = (sort_order or "desc").strip().lower()
+    if sort_by not in SORTABLE_FIELDS:
+        sort_by = "latest"
+    if sort_order not in {"asc", "desc"}:
+        sort_order = "desc"
+    if sort_by == "latest":
+        sort_order = "desc"
+    elif sort_by == "earliest":
+        sort_order = "asc"
+    sort_column = SORTABLE_FIELDS[sort_by]
+
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
@@ -266,7 +361,7 @@ def filter_data(data_type=None, task=None, keywords=None, page=1, per_page=10):
         count_query = f"SELECT COUNT(*) as count {base_query}{where_clause}"
         cursor.execute(count_query, params)
         total_count = cursor.fetchone()["count"]
-        total_pages = ceil(total_count / per_page)
+        total_pages = ceil(total_count / per_page) if total_count else 0
         
         # 主查询 - 只获取需要的字段，并处理空标题
         select_fields = """
@@ -291,24 +386,7 @@ def filter_data(data_type=None, task=None, keywords=None, page=1, per_page=10):
         query = f"SELECT {select_fields} {base_query}{where_clause}"
         
         # 添加排序和分页
-        query += " ORDER BY "
-        if keywords and keywords.strip():
-            # 关键词搜索时按相关性排序
-            query += """
-                CASE 
-                    WHEN arxiv_id LIKE ? THEN 1
-                    WHEN title LIKE ? THEN 2
-                    WHEN dataset_name LIKE ? THEN 3
-                    WHEN dataset_entity LIKE ? THEN 4
-                    ELSE 5
-                END,
-                title LIMIT ? OFFSET ?
-            """
-            relevance_params = [f"%{keywords.strip()}%"] * 4
-            params.extend(relevance_params)
-        else:
-            # 默认按标题排序
-            query += "title LIMIT ? OFFSET ?"
+        query += f" ORDER BY {sort_column} {sort_order.upper()}, title ASC LIMIT ? OFFSET ?"
         
         offset = (page - 1) * per_page
         params.extend([per_page, offset])
@@ -317,7 +395,7 @@ def filter_data(data_type=None, task=None, keywords=None, page=1, per_page=10):
         cursor.execute(query, params)
         filtered_data = [dict(row) for row in cursor.fetchall()]
         
-        return filtered_data, total_count, total_pages
+        return filtered_data, total_count, total_pages, where_clause, list(params[:-2])
     finally:
         return_db_connection(conn)
 
@@ -412,22 +490,47 @@ def serve_static(filename):
 
 @app.route("/api/search", methods=["GET"])
 def search_api():
+    """兼容旧参数的简化查询接口，内部复用统一查询服务。"""
     try:
         keywords = request.args.get("keywords", "").strip()
         data_type = request.args.get("data_type", "All")
         task = request.args.get("task", "All")
+        sort_by = request.args.get("sort_by", "latest").strip()
+        sort_order = request.args.get("sort_order", "desc").strip().lower()
+        if sort_by not in SORTABLE_FIELDS:
+            sort_by = "latest"
+        if sort_order not in {"asc", "desc"}:
+            sort_order = "desc"
+        include_stats = request.args.get("include_stats", "true").lower() in {"1", "true", "yes", "on"}
         page = max(int(request.args.get("page", 1)), 1)
         per_page = min(int(request.args.get("per_page", 10)), 50)  # 限制最大页面大小
+        arxiv_from = request.args.get("arxiv_from", "").strip()
+        arxiv_to = request.args.get("arxiv_to", "").strip()
 
-        filtered_data, results_count, total_pages = filter_data(data_type, task, keywords, page, per_page)
+        conditions = []
+        if data_type and data_type != "All":
+            conditions.append({"field": "data_type", "value": data_type, "match_mode": "exact"})
+        if task and task != "All":
+            conditions.append({"field": "task", "value": task, "match_mode": "exact"})
 
-        response = {
-            "results": filtered_data,
-            "results_count": results_count,
-            "total_pages": total_pages,
-            "current_page": page
-        }
+        response = search_records(
+            q=keywords,
+            field="all",
+            match_mode="contains",
+            page=page,
+            per_page=per_page,
+            logic="and",
+            conditions=conditions,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            include_stats=include_stats,
+            arxiv_from=arxiv_from,
+            arxiv_to=arxiv_to,
+        )
+        response["query_meta"]["api_mode"] = "simple_compat"
         return json_response(response)
+    except ValueError as e:
+        return json_response({"error": str(e)}, 400)
     except Exception as e:
         app.logger.error(f"Search API error: {str(e)}")
         return json_response({"error": "Internal server error"}, 500)
@@ -446,6 +549,157 @@ def filters_api():
         return json_response(response)
     except Exception as e:
         app.logger.error(f"Filters API error: {str(e)}")
+        return json_response({"error": "Internal server error"}, 500)
+
+        response = {"top_data_types": top_data_types_list, "top_tasks": top_tasks_list}
+        return json_response(response)
+    except Exception as e:
+        app.logger.error(f"Filters API error: {str(e)}")
+        return json_response({"error": "Internal server error"}, 500)
+
+@app.route("/api/data-status", methods=["GET"])
+def data_status_api():
+    try:
+        return json_response(get_data_status())
+    except Exception as e:
+        app.logger.error(f"Data status API error: {str(e)}")
+        return json_response({"error": "Internal server error"}, 500)
+
+
+@app.route("/api/query", methods=["GET"])
+def unified_query_api():
+    """
+    统一基础查询接口，支持：
+    - q: 关键词
+    - field: all/arxiv_id/title/dataset_name/dataset_entity/task/data_type
+    - match_mode: contains/exact/prefix
+    - page/per_page: 分页参数
+    """
+    q = request.args.get("q", "").strip()
+    field = request.args.get("field", "all").strip()
+    match_mode = request.args.get("match_mode", "contains").strip()
+    logic = request.args.get("logic", "and").strip().lower()
+    sort_by = request.args.get("sort_by", "latest").strip()
+    sort_order = request.args.get("sort_order", "desc").strip().lower()
+    include_stats = request.args.get("include_stats", "true").lower() in {"1", "true", "yes", "on"}
+    conditions_raw = request.args.get("conditions", "").strip()
+    page = max(int(request.args.get("page", 1)), 1)
+    per_page = min(int(request.args.get("per_page", 10)), 50)
+    arxiv_from = request.args.get("arxiv_from", "").strip()
+    arxiv_to = request.args.get("arxiv_to", "").strip()
+
+    if field not in QUERYABLE_FIELDS:
+        return json_response(
+            {
+                "error": "Invalid field",
+                "allowed_fields": sorted(list(QUERYABLE_FIELDS.keys())),
+            },
+            400,
+        )
+    if match_mode not in QUERY_MATCH_MODES:
+        return json_response(
+            {
+                "error": "Invalid match_mode",
+                "allowed_match_modes": sorted(list(QUERY_MATCH_MODES)),
+            },
+            400,
+        )
+    if logic not in QUERY_LOGIC_MODES:
+        return json_response(
+            {
+                "error": "Invalid logic",
+                "allowed_logic_modes": sorted(list(QUERY_LOGIC_MODES)),
+            },
+            400,
+        )
+    if sort_by not in SORTABLE_FIELDS:
+        return json_response(
+            {
+                "error": "Invalid sort_by",
+                "allowed_sort_fields": sorted(list(SORTABLE_FIELDS.keys())),
+            },
+            400,
+        )
+    if sort_order not in {"asc", "desc"}:
+        return json_response(
+            {"error": "Invalid sort_order", "allowed_sort_orders": ["asc", "desc"]},
+            400,
+        )
+
+    conditions = []
+    if conditions_raw:
+        try:
+            parsed_conditions = json.loads(conditions_raw)
+            if not isinstance(parsed_conditions, list):
+                raise ValueError("conditions must be a list")
+            conditions = parsed_conditions
+        except Exception:
+            return json_response(
+                {"error": "Invalid conditions JSON, expected list of condition objects"},
+                400,
+            )
+
+    try:
+        return json_response(
+            search_records(
+                q=q,
+                field=field,
+                match_mode=match_mode,
+                page=page,
+                per_page=per_page,
+                logic=logic,
+                conditions=conditions,
+                sort_by=sort_by,
+                sort_order=sort_order,
+                include_stats=include_stats,
+                arxiv_from=arxiv_from,
+                arxiv_to=arxiv_to,
+            )
+        )
+    except ValueError as e:
+        return json_response({"error": str(e)}, 400)
+    except Exception as e:
+        app.logger.error(f"Unified query API error: {str(e)}")
+        return json_response({"error": "Internal server error"}, 500)
+
+
+@app.route("/api/paper/<arxiv_id>", methods=["GET"])
+def paper_detail_api(arxiv_id):
+    """按 arXiv ID 查询论文关联的数据集记录。"""
+    try:
+        records = get_records_by_arxiv_id(arxiv_id)
+        unique_datasets = sorted(
+            {
+                record.get("dataset_entity")
+                for record in records
+                if record.get("dataset_entity")
+            }
+        )
+        unique_tasks = sorted(
+            {record.get("task") for record in records if record.get("task")}
+        )
+        unique_data_types = sorted(
+            {record.get("data_type") for record in records if record.get("data_type")}
+        )
+        paper_title = records[0].get("title") if records else None
+        return json_response(
+            {
+                "arxiv_id": arxiv_id,
+                "count": len(records),
+                "paper_title": paper_title,
+                "summary": {
+                    "dataset_count": len(unique_datasets),
+                    "task_count": len(unique_tasks),
+                    "data_type_count": len(unique_data_types),
+                    "datasets": unique_datasets,
+                    "tasks": unique_tasks,
+                    "data_types": unique_data_types,
+                },
+                "records": records,
+            }
+        )
+    except Exception as e:
+        app.logger.error(f"Paper detail API error: {str(e)}")
         return json_response({"error": "Internal server error"}, 500)
 
 @app.route("/api/datasets", methods=["GET"])
@@ -513,8 +767,36 @@ def dataset_detail_api(dataset_entity):
             {"Content-Type": "application/json"},
         )
     
+    unique_papers = sorted(
+        {record.get("arxiv_id") for record in details if record.get("arxiv_id")}
+    )
+    unique_tasks = sorted({record.get("task") for record in details if record.get("task")})
+    unique_data_types = sorted(
+        {record.get("data_type") for record in details if record.get("data_type")}
+    )
+    unique_locations = sorted(
+        {record.get("location") for record in details if record.get("location")}
+    )
+
     return (
-        json.dumps({"dataset": details[0], "usage_records": details}, ensure_ascii=False),
+        json.dumps(
+            {
+                "dataset": details[0],
+                "usage_records": details,
+                "summary": {
+                    "usage_record_count": len(details),
+                    "paper_count": len(unique_papers),
+                    "task_count": len(unique_tasks),
+                    "data_type_count": len(unique_data_types),
+                    "location_count": len(unique_locations),
+                    "papers": unique_papers,
+                    "tasks": unique_tasks,
+                    "data_types": unique_data_types,
+                    "locations": unique_locations,
+                },
+            },
+            ensure_ascii=False,
+        ),
         200,
         {"Content-Type": "application/json"},
     )
@@ -530,7 +812,13 @@ def home():
 
     top_data_types = get_top_data_types()
     top_tasks = get_top_tasks()
-    filtered_data, results_count, total_pages = filter_data(selected_data_type, selected_task, keywords, page, per_page)
+    filtered_data, results_count, total_pages, _, _ = filter_data(
+        selected_data_type,
+        selected_task,
+        keywords,
+        page,
+        per_page,
+    )
 
     # 调用分页函数
     pagination = get_pagination(page, total_pages)

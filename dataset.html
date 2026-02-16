@@ -3,183 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Dataset detail page with usage records from ChatPD.">
     <title>ChatPD - Dataset Details</title>
     <link id="css-link" rel="stylesheet" href="static/css/styles.css">
-    <style>
-        .top-nav {
-            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-            padding: 1rem 0;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .top-nav ul {
-            display: flex;
-            justify-content: center;
-            gap: 2rem;
-            margin: 0;
-            padding: 0;
-            list-style: none;
-        }
-        .top-nav a {
-            color: white;
-            text-decoration: none;
-            font-weight: 500;
-            padding: 0.5rem 1rem;
-            border-radius: 0.5rem;
-            transition: background-color 0.3s;
-        }
-        .top-nav a:hover {
-            background-color: rgba(255,255,255,0.1);
-        }
-        .container {
-            max-width: 1200px;
-            margin: 2rem auto;
-            padding: 0 1.5rem;
-        }
-        .dataset-header {
-            margin-bottom: 2rem;
-        }
-        .dataset-header h1 {
-            margin-bottom: 0.5rem;
-            color: #1e293b;
-        }
-        .dataset-link {
-            display: inline-block;
-            color: #4f46e5;
-            text-decoration: none;
-            margin-top: 0.5rem;
-            transition: color 0.3s;
-        }
-        .dataset-link:hover {
-            color: #4338ca;
-            text-decoration: underline;
-        }
-        .info-section {
-            background-color: #f8fafc;
-            border-radius: 0.75rem;
-            padding: 1.5rem;
-            margin-bottom: 2rem;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        }
-        .info-section h2 {
-            margin-top: 0;
-            margin-bottom: 1.25rem;
-            color: #1e293b;
-            font-size: 1.25rem;
-        }
-        .info-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 1rem;
-        }
-        @media (min-width: 768px) {
-            .info-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
-        .info-item {
-            display: flex;
-            flex-direction: column;
-        }
-        .info-item .label {
-            font-weight: 500;
-            color: #64748b;
-            margin-bottom: 0.25rem;
-        }
-        .info-item .value {
-            color: #1e293b;
-        }
-        .info-item .value a {
-            color: #4f46e5;
-            text-decoration: none;
-        }
-        .info-item .value a:hover {
-            text-decoration: underline;
-        }
-        .citation-box {
-            background-color: #f1f5f9;
-            border-radius: 0.5rem;
-            padding: 1rem;
-            font-family: monospace;
-            white-space: pre-wrap;
-            word-break: break-word;
-            color: #334155;
-            border-left: 4px solid #4f46e5;
-        }
-        .dataset-usage h2 {
-            margin-bottom: 1.25rem;
-            color: #1e293b;
-        }
-        .search-filter {
-            margin-bottom: 1.5rem;
-        }
-        .search-filter input {
-            width: 100%;
-            padding: 0.75rem 1rem;
-            border: 1px solid #cbd5e1;
-            border-radius: 0.5rem;
-            font-size: 1rem;
-        }
-        .paper-card {
-            background-color: #f8fafc;
-            border-radius: 0.75rem;
-            padding: 1.5rem;
-            margin-bottom: 1rem;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            transition: all 0.3s ease;
-            border-left: 4px solid transparent;
-        }
-        .paper-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            border-left: 4px solid #4f46e5;
-        }
-        .paper-header {
-            margin-bottom: 1rem;
-        }
-        .paper-header h3 {
-            margin-top: 0;
-            margin-bottom: 0.5rem;
-            color: #1e293b;
-        }
-        .arxiv-link {
-            display: inline-block;
-            background: #4f46e5;
-            color: white;
-            text-decoration: none;
-            font-size: 0.85rem;
-            padding: 0.3rem 0.6rem;
-            border-radius: 0.375rem;
-            margin-top: 0.25rem;
-            transition: background-color 0.3s;
-        }
-        .arxiv-link:hover {
-            background: #4338ca;
-            text-decoration: none;
-        }
-        .paper-meta {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 1rem;
-        }
-        .meta-item {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        .meta-item .label {
-            color: #64748b;
-            font-weight: 500;
-        }
-        .meta-item .value {
-            color: #1e293b;
-        }
-        #loading-indicator, #error-message {
-            text-align: center;
-            padding: 2rem;
-            font-size: 1.2rem;
-            color: #64748b;
-        }
-    </style>
 </head>
 <body>
     <nav class="top-nav">
@@ -252,6 +78,7 @@
 
             <div class="dataset-usage">
                 <h2>Usage Records (<span id="usage-count">0</span>)</h2>
+                <div id="usage-summary" class="result-stats"></div>
                 <div class="search-filter">
                     <input type="text" id="paper-search" placeholder="Search papers...">
                 </div>
@@ -282,9 +109,23 @@
             const baseUrl = getBaseUrl();
 
             const getApiUrl = () => {
-                return 'https://testweb.241814.xyz:5000';
+                const hostname = window.location.hostname;
+                if (hostname === 'chatpd-web.github.io' || hostname.includes('github.io')) {
+                    return 'https://testweb.241814.xyz:5000';
+                }
+                return '';
             };
             const apiUrl = getApiUrl();
+
+            function escapeHtml(text) {
+                return (text ?? '')
+                    .toString()
+                    .replaceAll('&', '&amp;')
+                    .replaceAll('<', '&lt;')
+                    .replaceAll('>', '&gt;')
+                    .replaceAll('"', '&quot;')
+                    .replaceAll("'", '&#039;');
+            }
 
             function setElementText(id, text) {
                 const element = document.getElementById(id);
@@ -377,6 +218,7 @@
 
                     const dataset = data.dataset;
                     const records = data.usage_records || [];
+                    const summary = data.summary || {};
 
                     setElementText('dataset-entity', dataset.dataset_entity);
                      document.title = `ChatPD - ${dataset.dataset_entity || datasetName}`;
@@ -403,6 +245,17 @@
                     }
 
                     setElementText('usage-count', records.length);
+                    const usageSummaryNode = document.getElementById('usage-summary');
+                    if (usageSummaryNode) {
+                        const taskCount = Number(summary.task_count || 0);
+                        const dataTypeCount = Number(summary.data_type_count || 0);
+                        const paperCount = Number(summary.paper_count || 0);
+                        usageSummaryNode.innerHTML = `
+                            <div><strong>Papers:</strong> ${paperCount}</div>
+                            <div><strong>Distinct Tasks:</strong> ${taskCount}</div>
+                            <div><strong>Distinct Data Types:</strong> ${dataTypeCount}</div>
+                        `;
+                    }
                     paperList.innerHTML = '';
                     if (records.length > 0) {
                         noPapersMessage.style.display = 'none';
@@ -412,22 +265,22 @@
                             card.dataset.title = (record.title || '').toLowerCase(); 
 
                             const arxivLink = record.arxiv_id 
-                                ? `<a href="https://arxiv.org/abs/${record.arxiv_id}" target="_blank" class="arxiv-link"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>arXiv:${record.arxiv_id}</a>` 
+                                ? `<a href="https://arxiv.org/abs/${encodeURIComponent(record.arxiv_id)}" target="_blank" class="arxiv-link">arXiv:${escapeHtml(record.arxiv_id)}</a>` 
                                 : '';
 
                             card.innerHTML = `
                                 <div class="paper-header">
-                                    <h3>${record.title || 'N/A'}</h3>
+                                    <h3>${escapeHtml(record.title || 'N/A')}</h3>
                                     ${arxivLink}
                                 </div>
                                 <div class="paper-meta">
                                     <div class="meta-item">
                                         <span class="label">Task:</span>
-                                        <span class="value">${record.task || 'N/A'}</span>
+                                        <span class="value">${escapeHtml(record.task || 'N/A')}</span>
                                     </div>
                                     <div class="meta-item">
                                         <span class="label">Data Type:</span>
-                                        <span class="value">${record.data_type || 'N/A'}</span>
+                                        <span class="value">${escapeHtml(record.data_type || 'N/A')}</span>
                                     </div>
                                 </div>
                             `;

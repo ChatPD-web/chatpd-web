@@ -1,9 +1,10 @@
 import json
 import sqlite3
-import pandas as pd
+import os
+from datetime import datetime
 
-# 读取 JSON 文件
-json_file = "data/final_product/ChatPD_WebData.json"
+# 读取 JSON 文件（默认切换到 from_db 版本，可通过环境变量覆盖）
+json_file = os.getenv("CHATPD_JSON_FILE", "data/final_product/ChatPD_WebData_from_db.json")
 with open(json_file, "r", encoding="utf-8") as file:
     data = json.load(file)  # 解析 JSON 文件
 
@@ -70,4 +71,8 @@ for entry in data:
 # 提交更改并关闭连接
 conn.commit()
 conn.close()
-print("数据已成功保存到数据库")
+
+print(f"数据已成功保存到数据库: {db_file}")
+print(f"数据源: {json_file}")
+print(f"导入记录数: {len(data)}")
+print(f"更新时间: {datetime.now().isoformat(timespec='seconds')}")

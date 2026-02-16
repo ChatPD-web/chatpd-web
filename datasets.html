@@ -3,56 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Browse dataset entities and usage counts in ChatPD.">
     <title>ChatPD - Datasets</title>
     <link id="css-link" rel="stylesheet" href="static/css/styles.css">
-    <style>
-        .top-nav {
-            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-            padding: 1rem 0;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .top-nav ul {
-            display: flex;
-            justify-content: center;
-            gap: 2rem;
-            margin: 0;
-            padding: 0;
-            list-style: none;
-        }
-        .top-nav a {
-            color: white;
-            text-decoration: none;
-            font-weight: 500;
-            padding: 0.5rem 1rem;
-            border-radius: 0.5rem;
-            transition: background-color 0.3s;
-        }
-        .top-nav a:hover {
-            background-color: rgba(255,255,255,0.1);
-        }
-        .pagination {
-            display: flex;
-            justify-content: center;
-            gap: 0.5rem;
-            margin-top: 2rem;
-        }
-        .pagination button {
-            padding: 0.5rem 1rem;
-            border: none;
-            background: #4f46e5;
-            color: white;
-            border-radius: 0.5rem;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-        .pagination button:disabled {
-            background: #cbd5e1;
-            cursor: not-allowed;
-        }
-        .pagination button:hover:not(:disabled) {
-            background: #4338ca;
-        }
-    </style>
 </head>
 <body>
     <nav class="top-nav">
@@ -64,11 +17,11 @@
 
     <div class="container datasets-container">
         <h1>Dataset Collections</h1>
-        <p class="description">Browse through all available datasets and explore their usage records.</p>
+        <p class="description">Browse available datasets and quickly jump to usage details.</p>
         
         <!-- 数据集搜索 -->
         <div class="dataset-search">
-            <input type="text" id="dataset-search-input" placeholder="Search datasets...">
+            <input type="text" id="dataset-search-input" placeholder="Search by dataset name/entity">
         </div>
         
         <!-- 数据集列表 -->
@@ -77,10 +30,12 @@
         </div>
 
         <!-- 分页控件 -->
-        <div class="pagination" id="pagination">
-            <button id="prev-page" disabled>&laquo; Previous</button>
-            <select id="page-selector"></select>
-            <button id="next-page" disabled>Next &raquo;</button>
+        <div class="pagination-container">
+            <div class="pagination" id="pagination">
+                <button id="prev-page" disabled>&laquo; Previous</button>
+                <select id="page-selector" aria-label="Select page"></select>
+                <button id="next-page" disabled>Next &raquo;</button>
+            </div>
         </div>
     </div>
 
@@ -135,12 +90,20 @@
             let currentPage = 1;
             let totalPages = 1;
             let allDatasets = [];
-            const perPage = 30;
+            const perPage = 24;
+            let currentSearch = "";
 
             // 加载数据集
             function loadDatasets(page = 1) {
                 datasetList.innerHTML = '<div class="loading">Loading datasets...</div>';
-                fetch(`${apiUrl}/api/datasets?page=${page}&per_page=${perPage}`)
+                const params = new URLSearchParams({
+                    page: String(page),
+                    per_page: String(perPage),
+                });
+                if (currentSearch) {
+                    params.set('search', currentSearch);
+                }
+                fetch(`${apiUrl}/api/datasets?${params.toString()}`)
                     .then(response => response.json())
                     .then(data => {
                         allDatasets = data.datasets;
@@ -196,28 +159,28 @@
             });
 
             // 搜索功能
-            searchInput.addEventListener('input', () => {
-                const searchTerm = searchInput.value.toLowerCase().trim();
-                if (searchTerm === '') {
-                    loadDatasets(1);
-                } else {
-                    // 改为调用API进行搜索，而不是仅过滤当前页数据
-                    fetch(`${apiUrl}/api/datasets?search=${encodeURIComponent(searchTerm)}&page=1&per_page=${perPage}`)
-                        .then(response => response.json())
-                        .then(data => {
-                            allDatasets = data.datasets;
-                            totalPages = data.total_pages;
-                            currentPage = data.current_page;
-                            displayDatasets(allDatasets);
-                            updatePagination();
-                            populatePageSelector();
-                        })
-                        .catch(error => {
-                            console.error('Error searching datasets:', error);
-                            datasetList.innerHTML = '<div class="error">Failed to search datasets. Please try again later.</div>';
-                        });
-                }
-            });
+            function debounce(func, wait) {
+                let timeoutId;
+                return (...args) => {
+                    clearTimeout(timeoutId);
+                    timeoutId = setTimeout(() => func(...args), wait);
+                };
+            }
+
+            searchInput.addEventListener('input', debounce(() => {
+                currentSearch = searchInput.value.trim().toLowerCase();
+                loadDatasets(1);
+            }, 250));
+
+            function escapeHtml(text) {
+                return (text ?? '')
+                    .toString()
+                    .replaceAll('&', '&amp;')
+                    .replaceAll('<', '&lt;')
+                    .replaceAll('>', '&gt;')
+                    .replaceAll('"', '&quot;')
+                    .replaceAll("'", '&#039;');
+            }
 
             // 显示数据集列表
             function displayDatasets(datasets) {
@@ -238,10 +201,10 @@
                     
                     card.innerHTML = `
                         <h3>
-                            <a href="${datasetUrl}">${dataset.dataset_entity}</a>
+                            <a href="${datasetUrl}">${escapeHtml(dataset.dataset_entity)}</a>
                         </h3>
                         <div class="dataset-meta">
-                            <span class="usage-count">Used in ${dataset.usage_count} paper(s)</span>
+                            <span class="usage-count">Used in ${Number(dataset.usage_count || 0)} paper(s)</span>
                         </div>
                     `;
                     
