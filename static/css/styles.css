@@ -555,3 +555,138 @@ body {
         padding: 1rem;
     }
 }
+
+/* ===== Unified UI refresh ===== */
+body {
+    background-color: #f3f6fb;
+    color: #1f2937;
+}
+
+.top-nav {
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+}
+
+.top-nav ul {
+    justify-content: center;
+    gap: 1rem;
+}
+
+.top-nav a {
+    font-weight: 600;
+    border-radius: 8px;
+}
+
+.top-nav a:focus-visible,
+button:focus-visible,
+select:focus-visible,
+input:focus-visible,
+a:focus-visible {
+    outline: 2px solid #4338ca;
+    outline-offset: 2px;
+}
+
+.home-layout {
+    align-items: flex-start;
+    gap: 1.5rem;
+}
+
+.search-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.secondary-btn {
+    margin-top: 0.75rem;
+    background: #eef2ff;
+    border: 1px solid #c7d2fe;
+    color: #3730a3;
+    border-radius: 6px;
+    padding: 8px 10px;
+    cursor: pointer;
+}
+
+.advanced-panel {
+    margin-top: 0.75rem;
+    border-top: 1px solid #e5e7eb;
+    padding-top: 0.75rem;
+}
+
+.advanced-toolbar,
+.advanced-sort {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.4rem;
+    margin-bottom: 0.75rem;
+}
+
+.condition-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1.2fr auto;
+    gap: 0.4rem;
+    margin-bottom: 0.5rem;
+}
+
+.condition-row .remove-condition {
+    border: 1px solid #fca5a5;
+    color: #b91c1c;
+    background: #fef2f2;
+    border-radius: 6px;
+    padding: 0.4rem 0.6rem;
+}
+
+.inline-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: #334155;
+}
+
+.result-stats {
+    background: #eef2ff;
+    border: 1px solid #c7d2fe;
+    border-radius: 10px;
+    padding: 0.7rem 0.9rem;
+    margin-bottom: 0.8rem;
+    color: #312e81;
+    display: grid;
+    gap: 0.35rem;
+}
+
+#results-list {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+}
+
+.result-item {
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    margin-bottom: 0.65rem;
+    background: #fff;
+}
+
+.result-item:last-child {
+    margin-bottom: 0;
+}
+
+.result-item h4 a {
+    color: #1d4ed8;
+}
+
+.result-item p {
+    line-height: 1.45;
+}
+
+.pagination button {
+    border: 1px solid #4338ca;
+}
+
+@media (max-width: 900px) {
+    .condition-row {
+        grid-template-columns: 1fr;
+    }
+
+    .home-layout {
+        gap: 1rem;
+    }
+}

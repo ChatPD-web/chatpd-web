@@ -1,5 +1,5 @@
 from math import ceil
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 import os
 import sqlite3
 
@@ -27,6 +27,18 @@ QUERYABLE_FIELDS = {
 }
 
 QUERY_MATCH_MODES = {"contains", "exact", "prefix"}
+QUERY_LOGIC_MODES = {"and", "or"}
+
+SORTABLE_FIELDS = {
+    "title": "title",
+    "arxiv_id": "arxiv_id",
+    "dataset_name": "dataset_name",
+    "dataset_entity": "dataset_entity",
+    "task": "task",
+    "data_type": "data_type",
+    "scale": "scale",
+    "location": "location",
+}
 
 SELECT_FIELDS = """
     arxiv_id,
@@ -89,13 +101,123 @@ def _build_query_condition(q: str, field: str, match_mode: str) -> Tuple[str, Li
     return f"{column} {operator} ?", [term]
 
 
-def search_records(q: str, field: str = "all", match_mode: str = "contains", page: int = 1, per_page: int = 10) -> Dict:
+def _build_condition_from_rule(rule: Dict) -> Tuple[str, List[str]]:
+    field = (rule.get("field") or "all").strip()
+    value = (rule.get("value") or "").strip()
+    match_mode = (rule.get("match_mode") or "contains").strip()
+    return _build_query_condition(value, field, match_mode)
+
+
+def _validate_sort(sort_by: str, sort_order: str) -> Tuple[str, str]:
+    sort_by = (sort_by or "title").strip()
+    sort_order = (sort_order or "asc").strip().lower()
+    if sort_by not in SORTABLE_FIELDS:
+        raise ValueError("Invalid sort_by")
+    if sort_order not in {"asc", "desc"}:
+        raise ValueError("Invalid sort_order")
+    return sort_by, sort_order
+
+
+def _build_where_clause(
+    q: str,
+    field: str,
+    match_mode: str,
+    logic: str,
+    conditions: Optional[List[Dict]],
+) -> Tuple[str, List[str], List[Dict]]:
+    rules = []
+    sql_parts: List[str] = []
+    params: List[str] = []
+
+    logic = (logic or "and").strip().lower()
+    if logic not in QUERY_LOGIC_MODES:
+        raise ValueError("Invalid logic")
+
+    for rule in (conditions or []):
+        if not isinstance(rule, dict):
+            continue
+        value = (rule.get("value") or "").strip()
+        if not value:
+            continue
+        clause, clause_params = _build_condition_from_rule(rule)
+        sql_parts.append(clause)
+        params.extend(clause_params)
+        rules.append(
+            {
+                "field": (rule.get("field") or "all").strip(),
+                "value": value,
+                "match_mode": (rule.get("match_mode") or "contains").strip(),
+            }
+        )
+
+    if not sql_parts and (q or "").strip():
+        clause, clause_params = _build_query_condition(q.strip(), field, match_mode)
+        sql_parts.append(clause)
+        params.extend(clause_params)
+        rules.append(
+            {
+                "field": field,
+                "value": q.strip(),
+                "match_mode": match_mode,
+            }
+        )
+
+    if not sql_parts:
+        return "", [], []
+
+    joined = f" {logic.upper()} ".join([f"({part})" for part in sql_parts])
+    return f" WHERE {joined}", params, rules
+
+
+def _distribution_sql(where_clause: str, field_name: str) -> str:
+    extra_where = (
+        f"{where_clause} AND {field_name} IS NOT NULL AND {field_name} != ''"
+        if where_clause
+        else f" WHERE {field_name} IS NOT NULL AND {field_name} != ''"
+    )
+    return f"""
+        SELECT {field_name} AS name, COUNT(*) AS count
+        FROM dataset_usage
+        {extra_where}
+        GROUP BY {field_name}
+        ORDER BY count DESC, name ASC
+        LIMIT 12
+    """
+
+
+def search_records(
+    q: str,
+    field: str = "all",
+    match_mode: str = "contains",
+    page: int = 1,
+    per_page: int = 10,
+    logic: str = "and",
+    conditions: Optional[List[Dict]] = None,
+    sort_by: str = "title",
+    sort_order: str = "asc",
+    include_stats: bool = False,
+) -> Dict:
     q = (q or "").strip()
     page = max(int(page), 1)
     per_page = min(max(int(per_page), 1), 50)
+    field = (field or "all").strip()
+    match_mode = (match_mode or "contains").strip()
+    include_stats = bool(include_stats)
 
-    condition, params = _build_query_condition(q, field, match_mode)
-    where_clause = f" WHERE {condition}" if condition else ""
+    if field not in QUERYABLE_FIELDS:
+        raise ValueError("Invalid field")
+    if match_mode not in QUERY_MATCH_MODES:
+        raise ValueError("Invalid match_mode")
+    sort_by, sort_order = _validate_sort(sort_by, sort_order)
+
+    where_clause, params, effective_rules = _build_where_clause(
+        q=q,
+        field=field,
+        match_mode=match_mode,
+        logic=logic,
+        conditions=conditions,
+    )
+    sort_column = SORTABLE_FIELDS[sort_by]
 
     conn = get_db_connection()
     try:
@@ -110,24 +232,48 @@ def search_records(q: str, field: str = "all", match_mode: str = "contains", pag
             SELECT {SELECT_FIELDS}
             FROM dataset_usage
             {where_clause}
-            ORDER BY title
+            ORDER BY {sort_column} {sort_order.upper()}, title ASC
             LIMIT ? OFFSET ?
         """
         offset = (page - 1) * per_page
         cursor.execute(query_sql, params + [per_page, offset])
         rows = [dict(row) for row in cursor.fetchall()]
+
+        stats = None
+        if include_stats:
+            task_sql = _distribution_sql(where_clause, "task")
+            cursor.execute(task_sql, params)
+            task_distribution = [dict(row) for row in cursor.fetchall()]
+
+            data_type_sql = _distribution_sql(where_clause, "data_type")
+            cursor.execute(data_type_sql, params)
+            data_type_distribution = [dict(row) for row in cursor.fetchall()]
+
+            stats = {
+                "task_distribution": task_distribution,
+                "data_type_distribution": data_type_distribution,
+            }
     finally:
         return_db_connection(conn)
 
-    return {
+    response = {
         "results": rows,
         "results_count": total_count,
         "total_pages": total_pages,
         "current_page": page,
-        "field": field,
-        "match_mode": match_mode,
-        "query": q,
+        "query_meta": {
+            "query": q,
+            "field": field,
+            "match_mode": match_mode,
+            "logic": logic,
+            "conditions": effective_rules,
+            "sort_by": sort_by,
+            "sort_order": sort_order,
+        },
     }
+    if stats is not None:
+        response["stats"] = stats
+    return response
 
 
 def get_records_by_arxiv_id(arxiv_id: str) -> List[Dict]:

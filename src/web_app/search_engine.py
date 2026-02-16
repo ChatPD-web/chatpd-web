@@ -15,8 +15,10 @@ from .config import (
     ENV, SERVER_URL
 )
 from .query_service import (
+    QUERY_LOGIC_MODES,
     QUERYABLE_FIELDS,
     QUERY_MATCH_MODES,
+    SORTABLE_FIELDS,
     get_records_by_arxiv_id,
     search_records,
 )
@@ -295,7 +297,7 @@ def get_dataset_details(dataset_entity):
 
 
 # 优化的数据过滤逻辑
-def filter_data(data_type=None, task=None, keywords=None, page=1, per_page=10):
+def filter_data(data_type=None, task=None, keywords=None, page=1, per_page=10, sort_by="title", sort_order="asc"):
     """
     根据 data type、task 和关键词过滤数据
     :param data_type: 数据类型（如 Graph、Text 等）
@@ -305,6 +307,14 @@ def filter_data(data_type=None, task=None, keywords=None, page=1, per_page=10):
     :param per_page: 每页条数
     :return: 过滤后的数据和总页数
     """
+    sort_by = (sort_by or "title").strip()
+    sort_order = (sort_order or "asc").strip().lower()
+    if sort_by not in SORTABLE_FIELDS:
+        sort_by = "title"
+    if sort_order not in {"asc", "desc"}:
+        sort_order = "asc"
+    sort_column = SORTABLE_FIELDS[sort_by]
+
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
@@ -372,24 +382,7 @@ def filter_data(data_type=None, task=None, keywords=None, page=1, per_page=10):
         query = f"SELECT {select_fields} {base_query}{where_clause}"
         
         # 添加排序和分页
-        query += " ORDER BY "
-        if keywords and keywords.strip():
-            # 关键词搜索时按相关性排序
-            query += """
-                CASE 
-                    WHEN arxiv_id LIKE ? THEN 1
-                    WHEN title LIKE ? THEN 2
-                    WHEN dataset_name LIKE ? THEN 3
-                    WHEN dataset_entity LIKE ? THEN 4
-                    ELSE 5
-                END,
-                title LIMIT ? OFFSET ?
-            """
-            relevance_params = [f"%{keywords.strip()}%"] * 4
-            params.extend(relevance_params)
-        else:
-            # 默认按标题排序
-            query += "title LIMIT ? OFFSET ?"
+        query += f" ORDER BY {sort_column} {sort_order.upper()}, title ASC LIMIT ? OFFSET ?"
         
         offset = (page - 1) * per_page
         params.extend([per_page, offset])
@@ -398,7 +391,7 @@ def filter_data(data_type=None, task=None, keywords=None, page=1, per_page=10):
         cursor.execute(query, params)
         filtered_data = [dict(row) for row in cursor.fetchall()]
         
-        return filtered_data, total_count, total_pages
+        return filtered_data, total_count, total_pages, where_clause, list(params[:-2])
     finally:
         return_db_connection(conn)
 
@@ -497,17 +490,66 @@ def search_api():
         keywords = request.args.get("keywords", "").strip()
         data_type = request.args.get("data_type", "All")
         task = request.args.get("task", "All")
+        sort_by = request.args.get("sort_by", "title").strip()
+        sort_order = request.args.get("sort_order", "asc").strip().lower()
+        include_stats = request.args.get("include_stats", "false").lower() in {"1", "true", "yes", "on"}
         page = max(int(request.args.get("page", 1)), 1)
         per_page = min(int(request.args.get("per_page", 10)), 50)  # 限制最大页面大小
 
-        filtered_data, results_count, total_pages = filter_data(data_type, task, keywords, page, per_page)
+        filtered_data, results_count, total_pages, where_clause, where_params = filter_data(
+            data_type,
+            task,
+            keywords,
+            page,
+            per_page,
+            sort_by=sort_by,
+            sort_order=sort_order,
+        )
 
         response = {
             "results": filtered_data,
             "results_count": results_count,
             "total_pages": total_pages,
-            "current_page": page
+            "current_page": page,
+            "query_meta": {
+                "sort_by": sort_by if sort_by in SORTABLE_FIELDS else "title",
+                "sort_order": sort_order if sort_order in {"asc", "desc"} else "asc",
+                "data_type": data_type,
+                "task": task,
+                "keywords": keywords,
+            },
         }
+        if include_stats:
+            conn = get_db_connection()
+            try:
+                cursor = conn.cursor()
+                task_query = f"""
+                    SELECT task as name, COUNT(*) as count
+                    FROM dataset_usage
+                    {where_clause} {"AND" if where_clause else "WHERE"} task IS NOT NULL AND task != ""
+                    GROUP BY task
+                    ORDER BY count DESC, name ASC
+                    LIMIT 10
+                """
+                cursor.execute(task_query, where_params)
+                task_distribution = [dict(row) for row in cursor.fetchall()]
+
+                data_type_query = f"""
+                    SELECT data_type as name, COUNT(*) as count
+                    FROM dataset_usage
+                    {where_clause} {"AND" if where_clause else "WHERE"} data_type IS NOT NULL AND data_type != ""
+                    GROUP BY data_type
+                    ORDER BY count DESC, name ASC
+                    LIMIT 10
+                """
+                cursor.execute(data_type_query, where_params)
+                data_type_distribution = [dict(row) for row in cursor.fetchall()]
+            finally:
+                return_db_connection(conn)
+            response["stats"] = {
+                "task_distribution": task_distribution,
+                "data_type_distribution": data_type_distribution,
+            }
         return json_response(response)
     except Exception as e:
         app.logger.error(f"Search API error: {str(e)}")
@@ -551,6 +593,11 @@ def unified_query_api():
     q = request.args.get("q", "").strip()
     field = request.args.get("field", "all").strip()
     match_mode = request.args.get("match_mode", "contains").strip()
+    logic = request.args.get("logic", "and").strip().lower()
+    sort_by = request.args.get("sort_by", "title").strip()
+    sort_order = request.args.get("sort_order", "asc").strip().lower()
+    include_stats = request.args.get("include_stats", "false").lower() in {"1", "true", "yes", "on"}
+    conditions_raw = request.args.get("conditions", "").strip()
     page = max(int(request.args.get("page", 1)), 1)
     per_page = min(int(request.args.get("per_page", 10)), 50)
 
@@ -570,9 +617,56 @@ def unified_query_api():
             },
             400,
         )
+    if logic not in QUERY_LOGIC_MODES:
+        return json_response(
+            {
+                "error": "Invalid logic",
+                "allowed_logic_modes": sorted(list(QUERY_LOGIC_MODES)),
+            },
+            400,
+        )
+    if sort_by not in SORTABLE_FIELDS:
+        return json_response(
+            {
+                "error": "Invalid sort_by",
+                "allowed_sort_fields": sorted(list(SORTABLE_FIELDS.keys())),
+            },
+            400,
+        )
+    if sort_order not in {"asc", "desc"}:
+        return json_response(
+            {"error": "Invalid sort_order", "allowed_sort_orders": ["asc", "desc"]},
+            400,
+        )
+
+    conditions = []
+    if conditions_raw:
+        try:
+            parsed_conditions = json.loads(conditions_raw)
+            if not isinstance(parsed_conditions, list):
+                raise ValueError("conditions must be a list")
+            conditions = parsed_conditions
+        except Exception:
+            return json_response(
+                {"error": "Invalid conditions JSON, expected list of condition objects"},
+                400,
+            )
 
     try:
-        return json_response(search_records(q, field, match_mode, page, per_page))
+        return json_response(
+            search_records(
+                q=q,
+                field=field,
+                match_mode=match_mode,
+                page=page,
+                per_page=per_page,
+                logic=logic,
+                conditions=conditions,
+                sort_by=sort_by,
+                sort_order=sort_order,
+                include_stats=include_stats,
+            )
+        )
     except Exception as e:
         app.logger.error(f"Unified query API error: {str(e)}")
         return json_response({"error": "Internal server error"}, 500)
@@ -583,10 +677,33 @@ def paper_detail_api(arxiv_id):
     """按 arXiv ID 查询论文关联的数据集记录。"""
     try:
         records = get_records_by_arxiv_id(arxiv_id)
+        unique_datasets = sorted(
+            {
+                record.get("dataset_entity")
+                for record in records
+                if record.get("dataset_entity")
+            }
+        )
+        unique_tasks = sorted(
+            {record.get("task") for record in records if record.get("task")}
+        )
+        unique_data_types = sorted(
+            {record.get("data_type") for record in records if record.get("data_type")}
+        )
+        paper_title = records[0].get("title") if records else None
         return json_response(
             {
                 "arxiv_id": arxiv_id,
                 "count": len(records),
+                "paper_title": paper_title,
+                "summary": {
+                    "dataset_count": len(unique_datasets),
+                    "task_count": len(unique_tasks),
+                    "data_type_count": len(unique_data_types),
+                    "datasets": unique_datasets,
+                    "tasks": unique_tasks,
+                    "data_types": unique_data_types,
+                },
                 "records": records,
             }
         )
@@ -659,8 +776,36 @@ def dataset_detail_api(dataset_entity):
             {"Content-Type": "application/json"},
         )
     
+    unique_papers = sorted(
+        {record.get("arxiv_id") for record in details if record.get("arxiv_id")}
+    )
+    unique_tasks = sorted({record.get("task") for record in details if record.get("task")})
+    unique_data_types = sorted(
+        {record.get("data_type") for record in details if record.get("data_type")}
+    )
+    unique_locations = sorted(
+        {record.get("location") for record in details if record.get("location")}
+    )
+
     return (
-        json.dumps({"dataset": details[0], "usage_records": details}, ensure_ascii=False),
+        json.dumps(
+            {
+                "dataset": details[0],
+                "usage_records": details,
+                "summary": {
+                    "usage_record_count": len(details),
+                    "paper_count": len(unique_papers),
+                    "task_count": len(unique_tasks),
+                    "data_type_count": len(unique_data_types),
+                    "location_count": len(unique_locations),
+                    "papers": unique_papers,
+                    "tasks": unique_tasks,
+                    "data_types": unique_data_types,
+                    "locations": unique_locations,
+                },
+            },
+            ensure_ascii=False,
+        ),
         200,
         {"Content-Type": "application/json"},
     )
@@ -676,7 +821,13 @@ def home():
 
     top_data_types = get_top_data_types()
     top_tasks = get_top_tasks()
-    filtered_data, results_count, total_pages = filter_data(selected_data_type, selected_task, keywords, page, per_page)
+    filtered_data, results_count, total_pages, _, _ = filter_data(
+        selected_data_type,
+        selected_task,
+        keywords,
+        page,
+        per_page,
+    )
 
     # 调用分页函数
     pagination = get_pagination(page, total_pages)
