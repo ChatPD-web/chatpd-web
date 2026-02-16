@@ -58,18 +58,23 @@ CHATPD_JSON_FILE=data/final_product/ChatPD_WebData.json python3 -m src.json2db
 ## Query APIs (Updated)
 
 - `GET /api/query`
+  - Primary query endpoint used by frontend
   - Params:
     - `q` (关键词，可空)
     - `field` (`all|arxiv_id|title|dataset_name|dataset_entity|task|data_type`)
     - `match_mode` (`contains|exact|prefix`)
     - `logic` (`and|or`)：多条件组合逻辑
     - `conditions` (JSON 数组字符串)：高级检索规则，元素格式 `{field, value, match_mode}`
-    - `sort_by` (`title|arxiv_id|dataset_name|dataset_entity|task|data_type|scale|location`)
+    - `sort_by` (`latest|earliest|title|arxiv_id|dataset_name|dataset_entity|task|data_type|scale|location`)
     - `sort_order` (`asc|desc`)
-    - `include_stats` (`true|false`)：返回 task/data_type 命中分布
+    - `include_stats` (`true|false`)：返回 task/data_type 命中分布（默认 `true`）
     - `page`, `per_page`
+  - Response extras:
+    - `per_page`, `returned_count`
+    - `query_meta.include_stats`
 
 - `GET /api/search`
+  - Backward-compatible simple wrapper (internally reuses query service)
   - Params:
     - `keywords`
     - `data_type`, `task`

@@ -148,7 +148,6 @@ select:focus-visible {
 }
 
 .filter-container input[type="text"],
-.filter-container input[type="month"],
 .filter-container select,
 .dataset-search input,
 .search-filter input {

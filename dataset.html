@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Dataset detail page with usage records from ChatPD.">
     <title>ChatPD - Dataset Details</title>
     <link id="css-link" rel="stylesheet" href="static/css/styles.css">
 </head>
@@ -108,9 +109,23 @@
             const baseUrl = getBaseUrl();
 
             const getApiUrl = () => {
-                return 'https://testweb.241814.xyz:5000';
+                const hostname = window.location.hostname;
+                if (hostname === 'chatpd-web.github.io' || hostname.includes('github.io')) {
+                    return 'https://testweb.241814.xyz:5000';
+                }
+                return '';
             };
             const apiUrl = getApiUrl();
+
+            function escapeHtml(text) {
+                return (text ?? '')
+                    .toString()
+                    .replaceAll('&', '&amp;')
+                    .replaceAll('<', '&lt;')
+                    .replaceAll('>', '&gt;')
+                    .replaceAll('"', '&quot;')
+                    .replaceAll("'", '&#039;');
+            }
 
             function setElementText(id, text) {
                 const element = document.getElementById(id);
@@ -250,22 +265,22 @@
                             card.dataset.title = (record.title || '').toLowerCase(); 
 
                             const arxivLink = record.arxiv_id 
-                                ? `<a href="https://arxiv.org/abs/${record.arxiv_id}" target="_blank" class="arxiv-link"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>arXiv:${record.arxiv_id}</a>` 
+                                ? `<a href="https://arxiv.org/abs/${encodeURIComponent(record.arxiv_id)}" target="_blank" class="arxiv-link">arXiv:${escapeHtml(record.arxiv_id)}</a>` 
                                 : '';
 
                             card.innerHTML = `
                                 <div class="paper-header">
-                                    <h3>${record.title || 'N/A'}</h3>
+                                    <h3>${escapeHtml(record.title || 'N/A')}</h3>
                                     ${arxivLink}
                                 </div>
                                 <div class="paper-meta">
                                     <div class="meta-item">
                                         <span class="label">Task:</span>
-                                        <span class="value">${record.task || 'N/A'}</span>
+                                        <span class="value">${escapeHtml(record.task || 'N/A')}</span>
                                     </div>
                                     <div class="meta-item">
                                         <span class="label">Data Type:</span>
-                                        <span class="value">${record.data_type || 'N/A'}</span>
+                                        <span class="value">${escapeHtml(record.data_type || 'N/A')}</span>
                                     </div>
                                 </div>
                             `;

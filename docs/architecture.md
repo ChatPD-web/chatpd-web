@@ -75,10 +75,11 @@ flowchart LR
 
 ### 4.1 Search Flow
 1. User sets keywords/filter/sort in home page.
-2. Frontend calls `/api/search` (simple filters) or `/api/query` (advanced conditions).
-3. Backend validates fields/match modes/sort settings.
-4. Query service returns paged rows and optional distribution stats.
-5. Frontend renders cards, count summary and pagination.
+2. Frontend calls `/api/query` as primary endpoint (advanced controls are optional and collapsed by default).
+3. Legacy clients can still call `/api/search`, which is a compatibility wrapper over the same query service.
+4. Backend validates fields/match modes/sort settings.
+5. Query service returns paged rows and optional distribution stats.
+6. Frontend renders cards, count summary and pagination.
 
 ### 4.2 Dataset Detail Flow
 1. User opens `/dataset/<dataset_entity>`.
@@ -102,14 +103,14 @@ Parameters:
 - `field`: `all|arxiv_id|title|dataset_name|dataset_entity|task|data_type`
 - `match_mode`: `contains|exact|prefix`
 - `page`, `per_page`
-- `sort_by`: allowed sortable field, default `title`
-- `sort_order`: `asc|desc`, default `asc`
+- `sort_by`: allowed sortable field, default `latest`
+- `sort_order`: `asc|desc`, default `desc` (`latest`/`earliest` auto-normalized)
 - `logic`: `and|or` for multi-condition search, default `and`
 - `conditions`: JSON array of `{ field, value, match_mode }`
-- `include_stats`: `true|false` whether to include task/data_type distribution
+- `include_stats`: `true|false` whether to include task/data_type distribution (default `true`)
 
 Response (shape):
-- `results`, `results_count`, `total_pages`, `current_page`
+- `results`, `results_count`, `total_pages`, `current_page`, `per_page`, `returned_count`
 - `query_meta`: resolved query options
 - `stats` (optional): `task_distribution`, `data_type_distribution`
 
@@ -122,7 +123,7 @@ Parameters:
 - `sort_by`, `sort_order`
 - `include_stats` (optional)
 
-Response includes search rows and optional lightweight distributions.
+This endpoint is compatibility-only and internally delegates to the unified query service.
 
 ### 5.3 Detail APIs
 

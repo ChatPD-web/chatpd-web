@@ -77,6 +77,13 @@ document.addEventListener("DOMContentLoaded", () => {
             .replaceAll("'", "&#039;");
     }
 
+    function normalizeYymm(value) {
+        const compact = (value || "").trim().replace(/\D/g, "");
+        if (!compact) return "";
+        if (/^\d{4}$/.test(compact)) return compact;
+        return "";
+    }
+
     function updateNavigationAndAssets() {
         document.querySelectorAll(".top-nav a").forEach((link) => {
             if (link.getAttribute("href") === "./") {
@@ -274,10 +281,12 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         if (arxivFromInput.value) {
-            params.set("arxiv_from", arxivFromInput.value);
+            const from = normalizeYymm(arxivFromInput.value);
+            if (from) params.set("arxiv_from", from);
         }
         if (arxivToInput.value) {
-            params.set("arxiv_to", arxivToInput.value);
+            const to = normalizeYymm(arxivToInput.value);
+            if (to) params.set("arxiv_to", to);
         }
         return params;
     }
@@ -338,10 +347,12 @@ document.addEventListener("DOMContentLoaded", () => {
         fetchResults();
     });
     arxivFromInput.addEventListener("change", () => {
+        arxivFromInput.value = normalizeYymm(arxivFromInput.value);
         currentPage = 1;
         fetchResults();
     });
     arxivToInput.addEventListener("change", () => {
+        arxivToInput.value = normalizeYymm(arxivToInput.value);
         currentPage = 1;
         fetchResults();
     });

@@ -39,6 +39,14 @@ CASE
 END
 """
 
+ARXIV_YYMM_SQL = """
+CASE
+    WHEN arxiv_id GLOB '[0-9][0-9][0-9][0-9].[0-9]*'
+    THEN CAST(SUBSTR(arxiv_id, 1, 4) AS INTEGER)
+    ELSE NULL
+END
+"""
+
 SORTABLE_FIELDS = {
     "title": "title",
     "arxiv_id": "arxiv_id",
@@ -119,17 +127,13 @@ def _parse_arxiv_month_key(month_value: Optional[str]) -> Optional[int]:
     value = month_value.strip()
     if not value:
         return None
-    if len(value) != 7 or value[4] != "-":
-        raise ValueError("Invalid arxiv month format, expected YYYY-MM")
-    year_part = value[:4]
-    month_part = value[5:]
-    if not year_part.isdigit() or not month_part.isdigit():
-        raise ValueError("Invalid arxiv month format, expected YYYY-MM")
-    year = int(year_part)
-    month = int(month_part)
-    if year < 1990 or year > 2099 or month < 1 or month > 12:
+    if len(value) != 4 or not value.isdigit():
+        raise ValueError("Invalid arxiv month format, expected YYMM")
+    yy = int(value[:2])
+    mm = int(value[2:])
+    if mm < 1 or mm > 12:
         raise ValueError("Invalid arxiv month range")
-    return (year % 100) * 100 + month
+    return yy * 100 + mm
 
 
 def _build_condition_from_rule(rule: Dict) -> Tuple[str, List[str]]:
@@ -263,11 +267,11 @@ def search_records(
     time_sql_parts: List[str] = []
     time_params: List[int] = []
     if arxiv_from_key is not None:
-        time_sql_parts.append(f"({ARXIV_TIME_SQL}) >= ?")
-        time_params.append(arxiv_from_key * 100)
+        time_sql_parts.append(f"({ARXIV_YYMM_SQL}) >= ?")
+        time_params.append(arxiv_from_key)
     if arxiv_to_key is not None:
-        time_sql_parts.append(f"({ARXIV_TIME_SQL}) <= ?")
-        time_params.append(arxiv_to_key * 100 + 99)
+        time_sql_parts.append(f"({ARXIV_YYMM_SQL}) <= ?")
+        time_params.append(arxiv_to_key)
 
     if time_sql_parts:
         time_clause = " AND ".join(time_sql_parts)
