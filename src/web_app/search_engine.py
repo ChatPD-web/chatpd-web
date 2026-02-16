@@ -71,8 +71,11 @@ def create_indexes():
             "CREATE INDEX IF NOT EXISTS idx_task ON dataset_usage(task);",
             "CREATE INDEX IF NOT EXISTS idx_dataset_entity ON dataset_usage(dataset_entity);",
             "CREATE INDEX IF NOT EXISTS idx_arxiv_id ON dataset_usage(arxiv_id);",
+            "CREATE INDEX IF NOT EXISTS idx_arxiv_time_key ON dataset_usage(arxiv_time_key);",
+            "CREATE INDEX IF NOT EXISTS idx_arxiv_yymm_key ON dataset_usage(arxiv_yymm_key);",
             "CREATE INDEX IF NOT EXISTS idx_title ON dataset_usage(title);",
             "CREATE INDEX IF NOT EXISTS idx_dataset_name ON dataset_usage(dataset_name);",
+            "CREATE INDEX IF NOT EXISTS idx_arxiv_time_title ON dataset_usage(arxiv_time_key DESC, title ASC);",
             # 复合索引for常见查询组合
             "CREATE INDEX IF NOT EXISTS idx_data_type_task ON dataset_usage(data_type, task);",
         ]

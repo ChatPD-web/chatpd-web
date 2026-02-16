@@ -31,21 +31,9 @@ QUERY_LOGIC_MODES = {"and", "or"}
 DEFAULT_SORT_BY = "latest"
 DEFAULT_SORT_ORDER = "desc"
 
-ARXIV_TIME_SQL = """
-CASE
-    WHEN arxiv_id GLOB '[0-9][0-9][0-9][0-9].[0-9]*'
-    THEN CAST(REPLACE(arxiv_id, '.', '') AS INTEGER)
-    ELSE NULL
-END
-"""
+ARXIV_TIME_SQL = "arxiv_time_key"
 
-ARXIV_YYMM_SQL = """
-CASE
-    WHEN arxiv_id GLOB '[0-9][0-9][0-9][0-9].[0-9]*'
-    THEN CAST(SUBSTR(arxiv_id, 1, 4) AS INTEGER)
-    ELSE NULL
-END
-"""
+ARXIV_YYMM_SQL = "arxiv_yymm_key"
 
 SORTABLE_FIELDS = {
     "title": "title",

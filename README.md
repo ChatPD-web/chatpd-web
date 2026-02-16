@@ -21,6 +21,8 @@ CREATE TABLE IF NOT EXISTS dataset_usage (
     dataset_entity TEXT,
     papers_with_code_url TEXT,
     homepage TEXT,
+    arxiv_time_key INTEGER,
+    arxiv_yymm_key INTEGER,
     PRIMARY KEY (arxiv_id, dataset_name)
 )
 ```
@@ -32,7 +34,7 @@ Dataset Entity Database: https://github.com/paperswithcode/paperswithcode-data (
 ## Data Refresh
 
 - Default import source: `data/final_product/ChatPD_WebData_from_db.json`
-- Rebuild SQLite data:
+- Rebuild SQLite data from the default source:
 
 ```bash
 python3 -m src.json2db
@@ -43,6 +45,20 @@ python3 -m src.json2db
 ```bash
 CHATPD_JSON_FILE=data/final_product/ChatPD_WebData.json python3 -m src.json2db
 ```
+
+- Optional import tuning for large JSON files:
+
+```bash
+CHATPD_BATCH_SIZE=2000 CHATPD_COMMIT_EVERY=20000 python3 -m src.json2db
+```
+
+- What `src/json2db.py` does:
+  - Stream reads the top-level JSON array to avoid loading the full file in memory
+  - Rebuilds `data/chatpd_data.db` and recreates table `dataset_usage`
+  - Upserts rows by primary key `(arxiv_id, dataset_name)` via `REPLACE INTO`
+  - Precomputes `arxiv_time_key` / `arxiv_yymm_key` for faster `latest/earliest` sorting and YYMM filtering
+
+- After rebuilding DB, restart backend service (Gunicorn/systemd) so API reads latest data.
 
 - Check latest data status in running service:
   - API: `GET /api/data-status`
