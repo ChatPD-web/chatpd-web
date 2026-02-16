@@ -9,9 +9,16 @@ import os
 import threading
 from functools import lru_cache
 import time
+from datetime import datetime
 from .config import (
     SSL_CERT_PATH, SSL_KEY_PATH, SERVER_ADDRESS, SERVER_PORT,
     ENV, SERVER_URL
+)
+from .query_service import (
+    QUERYABLE_FIELDS,
+    QUERY_MATCH_MODES,
+    get_records_by_arxiv_id,
+    search_records,
 )
 
 # 数据库连接池
@@ -42,9 +49,13 @@ class DatabasePool:
             else:
                 conn.close()
 
-# 全局连接池
-db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data/chatpd_data.db")
+# 全局路径与连接池
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+DATA_SOURCE_JSON = os.path.join(PROJECT_ROOT, "data/final_product/ChatPD_WebData_from_db.json")
+db_path = os.path.join(PROJECT_ROOT, "data/chatpd_data.db")
 db_pool = DatabasePool(db_path)
+cache_state_lock = threading.Lock()
+cached_db_mtime = None
 
 # 创建数据库索引
 def create_indexes():
@@ -86,6 +97,53 @@ def return_db_connection(conn):
     将连接返回到连接池
     """
     db_pool.return_connection(conn)
+
+
+def format_timestamp(ts):
+    if ts is None:
+        return None
+    return datetime.fromtimestamp(ts).isoformat(timespec="seconds")
+
+
+def get_data_status():
+    """返回当前系统数据源与数据库状态，用于前端展示“最新数据”信息。"""
+    source_exists = os.path.exists(DATA_SOURCE_JSON)
+    db_exists = os.path.exists(db_path)
+
+    status = {
+        "source_json_path": DATA_SOURCE_JSON,
+        "source_json_exists": source_exists,
+        "source_json_size_bytes": os.path.getsize(DATA_SOURCE_JSON) if source_exists else 0,
+        "source_json_mtime": format_timestamp(os.path.getmtime(DATA_SOURCE_JSON)) if source_exists else None,
+        "database_path": db_path,
+        "database_exists": db_exists,
+        "database_size_bytes": os.path.getsize(db_path) if db_exists else 0,
+        "database_mtime": format_timestamp(os.path.getmtime(db_path)) if db_exists else None,
+        "total_records": 0,
+        "total_datasets": 0,
+    }
+
+    if not db_exists:
+        return status
+
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) AS count FROM dataset_usage")
+        status["total_records"] = cursor.fetchone()["count"]
+
+        cursor.execute(
+            """
+            SELECT COUNT(DISTINCT dataset_entity) AS count
+            FROM dataset_usage
+            WHERE dataset_entity IS NOT NULL AND dataset_entity != ""
+            """
+        )
+        status["total_datasets"] = cursor.fetchone()["count"]
+    finally:
+        return_db_connection(conn)
+
+    return status
 
 # 获取所有数据
 def get_all_data():
@@ -148,6 +206,7 @@ def get_top_data_types(top_n=15):
     """
     获取出现次数最多的 N 种 data type
     """
+    ensure_cache_fresh()
     return get_top_data_types_cached(top_n)
 
 # 统计 task 的出现次数
@@ -155,7 +214,29 @@ def get_top_tasks(top_n=15):
     """
     获取出现次数最多的 N 种 task
     """
+    ensure_cache_fresh()
     return get_top_tasks_cached(top_n)
+
+
+def ensure_cache_fresh():
+    """
+    当数据库文件发生变化时，清理与统计相关的缓存，确保返回最新数据。
+    """
+    global cached_db_mtime
+
+    if not os.path.exists(db_path):
+        return
+
+    current_mtime = os.path.getmtime(db_path)
+    with cache_state_lock:
+        if cached_db_mtime is None:
+            cached_db_mtime = current_mtime
+            return
+
+        if current_mtime != cached_db_mtime:
+            get_top_data_types_cached.cache_clear()
+            get_top_tasks_cached.cache_clear()
+            cached_db_mtime = current_mtime
 
 
 # 获取数据集列表
@@ -446,6 +527,71 @@ def filters_api():
         return json_response(response)
     except Exception as e:
         app.logger.error(f"Filters API error: {str(e)}")
+        return json_response({"error": "Internal server error"}, 500)
+
+
+@app.route("/api/data-status", methods=["GET"])
+def data_status_api():
+    try:
+        return json_response(get_data_status())
+    except Exception as e:
+        app.logger.error(f"Data status API error: {str(e)}")
+        return json_response({"error": "Internal server error"}, 500)
+
+
+@app.route("/api/query", methods=["GET"])
+def unified_query_api():
+    """
+    统一基础查询接口，支持：
+    - q: 关键词
+    - field: all/arxiv_id/title/dataset_name/dataset_entity/task/data_type
+    - match_mode: contains/exact/prefix
+    - page/per_page: 分页参数
+    """
+    q = request.args.get("q", "").strip()
+    field = request.args.get("field", "all").strip()
+    match_mode = request.args.get("match_mode", "contains").strip()
+    page = max(int(request.args.get("page", 1)), 1)
+    per_page = min(int(request.args.get("per_page", 10)), 50)
+
+    if field not in QUERYABLE_FIELDS:
+        return json_response(
+            {
+                "error": "Invalid field",
+                "allowed_fields": sorted(list(QUERYABLE_FIELDS.keys())),
+            },
+            400,
+        )
+    if match_mode not in QUERY_MATCH_MODES:
+        return json_response(
+            {
+                "error": "Invalid match_mode",
+                "allowed_match_modes": sorted(list(QUERY_MATCH_MODES)),
+            },
+            400,
+        )
+
+    try:
+        return json_response(search_records(q, field, match_mode, page, per_page))
+    except Exception as e:
+        app.logger.error(f"Unified query API error: {str(e)}")
+        return json_response({"error": "Internal server error"}, 500)
+
+
+@app.route("/api/paper/<arxiv_id>", methods=["GET"])
+def paper_detail_api(arxiv_id):
+    """按 arXiv ID 查询论文关联的数据集记录。"""
+    try:
+        records = get_records_by_arxiv_id(arxiv_id)
+        return json_response(
+            {
+                "arxiv_id": arxiv_id,
+                "count": len(records),
+                "records": records,
+            }
+        )
+    except Exception as e:
+        app.logger.error(f"Paper detail API error: {str(e)}")
         return json_response({"error": "Internal server error"}, 500)
 
 @app.route("/api/datasets", methods=["GET"])

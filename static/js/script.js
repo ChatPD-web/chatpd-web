@@ -89,6 +89,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const nextPageBtn = document.getElementById('next-page');
     const dataTypeFilter = document.getElementById('data-type-filter');
     const taskFilter = document.getElementById('task-filter');
+    const dataStatusPanel = document.getElementById('data-status');
+    const dataStatusText = document.getElementById('data-status-text');
+    const refreshDataStatusBtn = document.getElementById('refresh-data-status');
 
     let currentPage = 1;
     let totalPages = 1;
@@ -96,8 +99,47 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedTask = 'All';
     let keywords = '';
 
+    function formatSize(bytes) {
+        if (!bytes || bytes <= 0) return '0 B';
+        const units = ['B', 'KB', 'MB', 'GB'];
+        let size = bytes;
+        let idx = 0;
+        while (size >= 1024 && idx < units.length - 1) {
+            size /= 1024;
+            idx += 1;
+        }
+        return `${size.toFixed(1)} ${units[idx]}`;
+    }
+
+    function fetchDataStatus() {
+        if (!dataStatusPanel || !dataStatusText) return;
+        dataStatusText.textContent = '数据状态加载中...';
+
+        fetch(`${apiUrl}/api/data-status`)
+            .then(response => response.json())
+            .then(data => {
+                const sourceMtime = data.source_json_mtime || 'N/A';
+                const dbMtime = data.database_mtime || 'N/A';
+                const totalRecords = Number(data.total_records || 0).toLocaleString();
+                const totalDatasets = Number(data.total_datasets || 0).toLocaleString();
+                const sourceSize = formatSize(data.source_json_size_bytes || 0);
+                const dbSize = formatSize(data.database_size_bytes || 0);
+
+                dataStatusText.textContent =
+                    `当前数据源: from_db | 记录数: ${totalRecords} | 数据集数: ${totalDatasets} | JSON更新时间: ${sourceMtime} | DB更新时间: ${dbMtime} | JSON大小: ${sourceSize} | DB大小: ${dbSize}`;
+            })
+            .catch((error) => {
+                console.error('Error fetching data status:', error);
+                dataStatusText.textContent = '数据状态获取失败，请稍后重试。';
+            });
+    }
+
     // 初始化过滤器
     initializeFilters();
+    fetchDataStatus();
+    if (refreshDataStatusBtn) {
+        refreshDataStatusBtn.addEventListener('click', fetchDataStatus);
+    }
 
     // 初始化过滤器
     function initializeFilters() {
