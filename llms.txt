@@ -1,0 +1,48 @@
+# ChatPD
+
+> ChatPD tracks dataset usage in academic papers. Search by keyword, arXiv ID, dataset name, task type, or data type.
+
+## Important for AI agents
+
+This website loads all data dynamically via a REST API. The HTML pages contain no data — do NOT scrape the HTML. Use the API directly.
+
+**API base URL:** https://testweb.241814.xyz:5000
+
+**Machine-readable config:** https://chatpd-web.github.io/chatpd-web/api-config.json
+
+## Key API endpoints
+
+- `GET /api/data-status` — total records, datasets, last update time
+- `GET /api/datasets?page=1&per_page=24&search=<keyword>` — list dataset entities with usage counts
+- `GET /api/dataset/<dataset_entity>` — details, usage records, and summary for one dataset
+- `GET /api/query?q=<keywords>&field=all&sort_by=latest&page=1&per_page=20` — search records
+- `GET /api/paper/<arxiv_id>` — all dataset usage records for a paper
+- `GET /api/filters` — available data types and tasks for filtering
+
+## Query parameters for /api/query
+
+- `q` — search keywords
+- `field` — `all` | `arxiv_id` | `title` | `dataset_name` | `dataset_entity` | `task` | `data_type`
+- `match_mode` — `any` | `all` | `exact`
+- `sort_by` — `latest` | `earliest` | `title`
+- `sort_order` — `asc` | `desc`
+- `page`, `per_page` — pagination (per_page max 50)
+- `arxiv_from`, `arxiv_to` — arXiv time filter in YYMM format (e.g. `2401` for Jan 2024)
+- `include_stats` — `true` to include aggregated stats in response
+- `conditions` — JSON array of additional filter conditions
+
+## Example requests
+
+```
+GET https://testweb.241814.xyz:5000/api/data-status
+GET https://testweb.241814.xyz:5000/api/query?q=ImageNet&field=dataset_name&sort_by=latest&page=1&per_page=20
+GET https://testweb.241814.xyz:5000/api/datasets?page=1&per_page=24
+GET https://testweb.241814.xyz:5000/api/paper/2301.12345
+GET https://testweb.241814.xyz:5000/api/dataset/ImageNet
+```
+
+## Pages (for reference only — no data in HTML)
+
+- https://chatpd-web.github.io/chatpd-web/ — home / search UI
+- https://chatpd-web.github.io/chatpd-web/datasets — dataset browser
+- https://chatpd-web.github.io/chatpd-web/api.html — API documentation

@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Browse dataset entities and usage counts in ChatPD.">
+    <meta name="chatpd-api-base" content="https://testweb.241814.xyz:5000">
+    <meta name="note-for-ai-agents" content="This page loads data via REST API. Do not scrape HTML. Use API: https://testweb.241814.xyz:5000/api/datasets — see api-config.json or llms.txt for full guide.">
+    <link rel="alternate" type="application/json" href="api-config.json" title="ChatPD API config">
+    <link rel="alternate" type="text/plain" href="llms.txt" title="ChatPD AI agent guide">
     <title>ChatPD - Datasets</title>
     <link id="css-link" rel="stylesheet" href="static/css/styles.css">
 </head>
@@ -12,6 +16,7 @@
         <ul>
             <li><a href="./">Home</a></li>
             <li><a href="datasets">Datasets</a></li>
+            <li><a href="api.html">API</a></li>
         </ul>
     </nav>
 
@@ -73,6 +78,8 @@
                     link.setAttribute('href', baseUrl + '/' || './');
                 } else if (link.getAttribute('href') === 'datasets') {
                     link.setAttribute('href', baseUrl + '/datasets');
+                } else if (link.getAttribute('href') === 'api.html') {
+                    link.setAttribute('href', baseUrl + '/api.html');
                 }
             });
             

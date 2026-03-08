@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="ChatPD REST API: programmatic and AI agent access to dataset usage data.">
+    <title>ChatPD - API</title>
+    <link id="css-link" rel="stylesheet" href="static/css/styles.css">
+    <link rel="alternate" type="application/json" href="api-config.json" title="ChatPD API config">
+</head>
+<body>
+    <nav class="top-nav">
+        <ul>
+            <li><a href="./">Home</a></li>
+            <li><a href="datasets">Datasets</a></li>
+            <li><a href="api.html">API</a></li>
+        </ul>
+    </nav>
+
+    <div class="container">
+        <h1>ChatPD API</h1>
+        <p>This site’s data is served by a <strong>REST API</strong>. You can use it from scripts, tools, or AI agents without scraping the web UI.</p>
+
+        <section class="api-section">
+            <h2>Base URL</h2>
+            <p><code id="api-base-url">https://testweb.241814.xyz:5000</code></p>
+            <p>All endpoints below are relative to this base. Example: list datasets → <code>GET https://testweb.241814.xyz:5000/api/datasets?page=1&amp;per_page=24</code></p>
+        </section>
+
+        <section class="api-section">
+            <h2>Machine-readable config</h2>
+            <p>For programmatic discovery, fetch the API config (same base URL and endpoints):</p>
+            <p><a href="api-config.json">api-config.json</a></p>
+        </section>
+
+        <section class="api-section">
+            <h2>Endpoints</h2>
+            <table class="api-table">
+                <thead>
+                    <tr>
+                        <th>Method</th>
+                        <th>Path</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>GET</td>
+                        <td><code>/api/datasets</code></td>
+                        <td>List dataset entities with usage counts. Query: <code>page</code>, <code>per_page</code>, <code>search</code>.</td>
+                    </tr>
+                    <tr>
+                        <td>GET</td>
+                        <td><code>/api/dataset/&lt;dataset_entity&gt;</code></td>
+                        <td>One dataset’s details, usage records, and summary. Encode <code>dataset_entity</code> in the URL.</td>
+                    </tr>
+                    <tr>
+                        <td>GET</td>
+                        <td><code>/api/query</code></td>
+                        <td>Search records. Params: <code>q</code>, <code>field</code>, <code>match_mode</code>, <code>page</code>, <code>per_page</code>, <code>sort_by</code>, <code>sort_order</code>, <code>conditions</code> (JSON), <code>arxiv_from</code>, <code>arxiv_to</code>, <code>include_stats</code>.</td>
+                    </tr>
+                    <tr>
+                        <td>GET</td>
+                        <td><code>/api/data-status</code></td>
+                        <td>Data source status: total records, datasets, last update time.</td>
+                    </tr>
+                    <tr>
+                        <td>GET</td>
+                        <td><code>/api/filters</code></td>
+                        <td>Top data types and tasks (for filter UIs).</td>
+                    </tr>
+                    <tr>
+                        <td>GET</td>
+                        <td><code>/api/paper/&lt;arxiv_id&gt;</code></td>
+                        <td>All dataset usage records for a paper by arXiv ID.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="api-section">
+            <h2>For AI agents</h2>
+            <p>To access ChatPD data programmatically, call the API directly. Do not rely on the HTML of the web UI; the UI loads data asynchronously from the API. Use the base URL above and the paths in the table. For a machine-readable list of endpoints, use <code>GET <span id="api-base-url-2">https://testweb.241814.xyz:5000</span>/api</code> (when the server is running) or <a href="api-config.json">api-config.json</a> on this site.</p>
+        </section>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const path = window.location.pathname;
+            const baseUrl = path.includes('/chatpd-web/') ? '/chatpd-web' : '';
+            if (baseUrl) {
+                document.querySelectorAll('.top-nav a').forEach(link => {
+                    const href = link.getAttribute('href');
+                    if (href === './') link.setAttribute('href', baseUrl + '/');
+                    else if (href === 'datasets') link.setAttribute('href', baseUrl + '/datasets');
+                    else if (href === 'api.html') link.setAttribute('href', baseUrl + '/api.html');
+                });
+                const cssLink = document.getElementById('css-link');
+                if (cssLink) cssLink.href = baseUrl + '/static/css/styles.css';
+                document.querySelector('a[href="api-config.json"]').href = baseUrl + '/api-config.json';
+            }
+        });
+    </script>
+</body>
+</html>
