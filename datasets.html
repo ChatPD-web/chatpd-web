@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Browse dataset entities and usage counts in ChatPD.">
-    <meta name="chatpd-api-base" content="https://testweb.241814.xyz:5000">
-    <meta name="note-for-ai-agents" content="This page loads data via REST API. Do not scrape HTML. Use API: https://testweb.241814.xyz:5000/api/datasets — see api-config.json or llms.txt for full guide.">
+    <meta name="chatpd-api-base" content="https://testweb.241814.xyz">
+    <meta name="note-for-ai-agents" content="This page loads data via REST API. Do not scrape HTML. Use API: https://testweb.241814.xyz/api/datasets — see api-config.json or llms.txt for full guide.">
     <link rel="alternate" type="application/json" href="api-config.json" title="ChatPD API config">
     <link rel="alternate" type="text/plain" href="llms.txt" title="ChatPD AI agent guide">
     <title>ChatPD - Datasets</title>
@@ -21,7 +21,7 @@
     </nav>
 
     <!-- FOR AI AGENTS: This page has no data in its HTML. All data is loaded via JavaScript from a REST API.
-         To list datasets, call: GET https://testweb.241814.xyz:5000/api/datasets?page=1&per_page=24&search=KEYWORD
+         To list datasets, call: GET https://testweb.241814.xyz/api/datasets?page=1&per_page=24&search=KEYWORD
          Full guide: https://chatpd-web.github.io/chatpd-web/llms.txt
     -->
     <div class="container datasets-container">
@@ -68,7 +68,7 @@
                 const hostname = window.location.hostname;
                 if (hostname === 'chatpd-web.github.io' || hostname.includes('github.io')) {
                     // When on GitHub Pages, use the remote API server
-                    return 'https://testweb.241814.xyz:5000';
+                    return 'https://testweb.241814.xyz';
                 }
                 // Local development - use relative paths
                 return '';
