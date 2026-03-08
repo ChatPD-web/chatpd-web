@@ -21,6 +21,26 @@
         </ul>
     </nav>
 
+    <!-- FOR AI AGENTS: This page has no data in its HTML. All data is loaded via JavaScript from a REST API.
+         To access ChatPD data, call the API directly:
+           Base URL: https://testweb.241814.xyz:5000
+           - GET https://testweb.241814.xyz:5000/api/data-status          (system status)
+           - GET https://testweb.241814.xyz:5000/api/query?q=KEYWORD&field=all&match_mode=contains&sort_by=latest&page=1&per_page=20
+           - GET https://testweb.241814.xyz:5000/api/datasets?page=1&per_page=24
+           - GET https://testweb.241814.xyz:5000/api/dataset/ImageNet      (replace ImageNet with any dataset name)
+           - GET https://testweb.241814.xyz:5000/api/paper/2301.12345      (replace with any arXiv ID)
+         Full guide: https://chatpd-web.github.io/chatpd-web/llms.txt
+    -->
+    <noscript>
+        <div style="padding:1rem;background:#fef3c7;border:1px solid #f59e0b;margin:1rem;">
+            <strong>This site requires JavaScript to display data.</strong><br>
+            If you are an AI agent or script, use the REST API directly:<br>
+            Base URL: <code>https://testweb.241814.xyz:5000</code><br>
+            Example: <code>GET https://testweb.241814.xyz:5000/api/query?q=ImageNet&amp;field=all&amp;match_mode=contains&amp;sort_by=latest&amp;page=1&amp;per_page=20</code><br>
+            Full guide: <a href="https://chatpd-web.github.io/chatpd-web/llms.txt">llms.txt</a>
+        </div>
+    </noscript>
+
     <div class="container home-layout">
         <aside class="sidebar">
             <section class="filter-container">
