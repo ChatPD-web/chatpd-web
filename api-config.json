@@ -1,7 +1,7 @@
 {
   "name": "ChatPD API",
   "description": "REST API for dataset usage in academic papers. Use this base URL to fetch data programmatically or via AI agents. NOTE: The web UI loads all data from this API — do NOT scrape the HTML pages, they contain no data.",
-  "base_url": "https://testweb.241814.xyz",
+  "base_url": "https://testweb.241814.xyz/chatpd",
   "documentation_url": "https://chatpd-web.github.io/chatpd-web/api.html",
   "agent_guide_url": "https://chatpd-web.github.io/chatpd-web/llms.txt",
   "endpoints": {
@@ -15,26 +15,26 @@
       "method": "GET",
       "params": ["page", "per_page", "search"],
       "description": "List all dataset entities with usage counts (paginated). per_page max 100.",
-      "example": "GET https://testweb.241814.xyz/api/datasets?page=1&per_page=24"
+      "example": "GET https://testweb.241814.xyz/chatpd/api/datasets?page=1&per_page=24"
     },
     "dataset_detail": {
       "path": "/api/dataset/{dataset_entity}",
       "method": "GET",
       "description": "Get one dataset's details, usage records, and summary. URL-encode dataset_entity.",
-      "example": "GET https://testweb.241814.xyz/api/dataset/ImageNet"
+      "example": "GET https://testweb.241814.xyz/chatpd/api/dataset/ImageNet"
     },
     "query": {
       "path": "/api/query",
       "method": "GET",
       "params": ["q", "field", "match_mode", "page", "per_page", "sort_by", "sort_order", "conditions", "arxiv_from", "arxiv_to", "include_stats"],
       "description": "Search records. q=keywords, field=all|arxiv_id|title|dataset_name|dataset_entity|task|data_type, match_mode=any|all|exact, sort_by=latest|earliest|title, arxiv_from/arxiv_to=YYMM format (e.g. 2401). per_page max 50.",
-      "example": "GET https://testweb.241814.xyz/api/query?q=ImageNet&field=dataset_name&sort_by=latest&page=1&per_page=20"
+      "example": "GET https://testweb.241814.xyz/chatpd/api/query?q=ImageNet&field=dataset_name&sort_by=latest&page=1&per_page=20"
     },
     "paper": {
       "path": "/api/paper/{arxiv_id}",
       "method": "GET",
       "description": "Get all dataset usage records for a paper by arXiv ID.",
-      "example": "GET https://testweb.241814.xyz/api/paper/2301.12345"
+      "example": "GET https://testweb.241814.xyz/chatpd/api/paper/2301.12345"
     },
     "filters": {
       "path": "/api/filters",

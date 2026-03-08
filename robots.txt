@@ -2,6 +2,6 @@ User-agent: *
 Allow: /
 
 # AI agents: this site loads data via REST API, not HTML.
-# Use the API directly: https://testweb.241814.xyz
+# Use the API directly: https://testweb.241814.xyz/chatpd
 # Machine-readable config: https://chatpd-web.github.io/chatpd-web/api-config.json
 # Full agent guide: https://chatpd-web.github.io/chatpd-web/llms.txt

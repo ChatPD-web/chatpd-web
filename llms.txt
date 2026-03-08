@@ -6,7 +6,7 @@
 
 This website loads all data dynamically via a REST API. The HTML pages contain no data — do NOT scrape the HTML. Use the API directly.
 
-**API base URL:** https://testweb.241814.xyz
+**API base URL:** https://testweb.241814.xyz/chatpd
 
 **Machine-readable config:** https://chatpd-web.github.io/chatpd-web/api-config.json
 
@@ -34,11 +34,11 @@ This website loads all data dynamically via a REST API. The HTML pages contain n
 ## Example requests
 
 ```
-GET https://testweb.241814.xyz/api/data-status
-GET https://testweb.241814.xyz/api/query?q=ImageNet&field=dataset_name&sort_by=latest&page=1&per_page=20
-GET https://testweb.241814.xyz/api/datasets?page=1&per_page=24
-GET https://testweb.241814.xyz/api/paper/2301.12345
-GET https://testweb.241814.xyz/api/dataset/ImageNet
+GET https://testweb.241814.xyz/chatpd/api/data-status
+GET https://testweb.241814.xyz/chatpd/api/query?q=ImageNet&field=dataset_name&sort_by=latest&page=1&per_page=20
+GET https://testweb.241814.xyz/chatpd/api/datasets?page=1&per_page=24
+GET https://testweb.241814.xyz/chatpd/api/paper/2301.12345
+GET https://testweb.241814.xyz/chatpd/api/dataset/ImageNet
 ```
 
 ## Pages (for reference only — no data in HTML)

@@ -5,12 +5,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const getApiUrl = () => {
         const hostname = window.location.hostname;
         if (hostname === "chatpd-web.github.io" || hostname.includes("github.io")) {
-            return "https://testweb.241814.xyz";
+            return "https://testweb.241814.xyz/chatpd";
         }
         if (hostname === "localhost" || hostname === "127.0.0.1") {
             return "";
         }
-        return "https://testweb.241814.xyz";
+        return "https://testweb.241814.xyz/chatpd";
     };
 
     const getBaseUrl = () => {
