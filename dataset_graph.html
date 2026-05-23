@@ -156,6 +156,8 @@
                 showError(err.message || 'Network error. Please try again.');
             });
 
+        var expandedEdges = {};
+
         function renderGraph(related, totalRelated) {
             var container = document.getElementById('graph-container');
             container.style.display = 'block';
@@ -164,6 +166,7 @@
             var nodes = [{
                 id: datasetEntity,
                 isCenter: true,
+                type: 'dataset',
                 radius: 28,
                 co_usage_count: totalRelated
             }];
@@ -176,10 +179,17 @@
                 nodes.push({
                     id: name,
                     isCenter: false,
+                    type: 'dataset',
                     radius: Math.max(8, Math.min(24, Math.sqrt(count) * 0.9)),
                     co_usage_count: count
                 });
-                links.push({ source: datasetEntity, target: name, value: count });
+                links.push({
+                    id: datasetEntity + '|||' + name,
+                    source: datasetEntity,
+                    target: name,
+                    value: count,
+                    expanded: false
+                });
             }
 
             var width = container.clientWidth || 900;
@@ -197,7 +207,6 @@
                 .on('zoom', function(event) { g.attr('transform', event.transform); });
             svg.call(zoom);
 
-            // Scale edge width: sqrt to avoid extremes
             var maxVal = related[0] ? related[0].co_usage_count : 1;
             var edgeScale = d3.scaleLinear().domain([1, maxVal]).range([1, 6]);
 
@@ -207,26 +216,40 @@
                 .force('center', d3.forceCenter(width / 2, height / 2))
                 .force('collision', d3.forceCollide().radius(function(d) { return d.radius + 10; }));
 
-            var link = g.append('g').selectAll('line').data(links).join('line')
+            // Edges rendered as wider invisible hit area + visible line
+            var linkG = g.append('g');
+            var linkHit = linkG.selectAll('line.hit').data(links).join('line')
+                .attr('class', 'hit')
+                .attr('stroke', 'transparent')
+                .attr('stroke-width', 14)
+                .style('cursor', 'pointer');
+
+            var linkLine = linkG.selectAll('line.visible').data(links).join('line')
+                .attr('class', 'visible')
                 .attr('stroke', '#cbd5e1')
                 .attr('stroke-width', function(d) { return edgeScale(d.value); })
-                .attr('stroke-opacity', 0.5);
+                .attr('stroke-opacity', 0.6);
 
-            var node = g.append('g').selectAll('g').data(nodes).join('g')
+            var nodeG = g.append('g');
+            var node = nodeG.selectAll('g.node-group').data(nodes).join('g')
+                .attr('class', 'node-group')
                 .call(d3.drag()
                     .on('start', function(event, d) {
+                        if (d.type !== 'dataset') return;
                         if (!event.active) simulation.alphaTarget(0.3).restart();
                         d.fx = d.x; d.fy = d.y;
                     })
                     .on('drag', function(event, d) {
+                        if (d.type !== 'dataset') return;
                         d.fx = event.x; d.fy = event.y;
                     })
                     .on('end', function(event, d) {
+                        if (d.type !== 'dataset') return;
                         if (!event.active) simulation.alphaTarget(0);
                         if (!d.isCenter) { d.fx = null; d.fy = null; }
                     }));
 
-            node.append('circle')
+            node.filter(function(d) { return d.type === 'dataset'; }).append('circle')
                 .attr('r', function(d) { return d.radius; })
                 .attr('fill', function(d) { return d.isCenter ? '#4f46e5' : '#7c3aed'; })
                 .attr('opacity', function(d) { return d.isCenter ? 1 : 0.75; })
@@ -234,8 +257,9 @@
                 .attr('stroke-width', function(d) { return d.isCenter ? 3 : 1.5; })
                 .style('cursor', function(d) { return d.isCenter ? 'default' : 'pointer'; })
                 .on('mouseover', function(event, d) {
-                    tooltip.style('display', 'block')
-                        .html('<strong>' + d.id + '</strong><br>Co-usage: ' + d.co_usage_count.toLocaleString())
+                    var html = '<strong>' + d.id + '</strong><br>Co-usage: ' + d.co_usage_count.toLocaleString();
+                    if (!d.isCenter) html += '<br><small>Click to explore</small>';
+                    tooltip.style('display', 'block').html(html)
                         .style('left', (event.pageX + 14) + 'px')
                         .style('top', (event.pageY - 32) + 'px');
                 })
@@ -245,37 +269,193 @@
                 })
                 .on('mouseout', function() { tooltip.style('display', 'none'); })
                 .on('click', function(event, d) {
-                    if (!d.isCenter) {
-                        var isGhPages = window.location.hostname.includes('github.io');
-                        var link;
-                        if (isGhPages) {
-                            link = baseUrl + '/dataset_graph.html?entity=' + encodeURIComponent(d.id);
-                        } else {
-                            link = baseUrl + '/dataset/' + encodeURIComponent(d.id) + '/graph';
-                        }
-                        window.location.href = link;
+                    if (!d.isCenter && d.type === 'dataset') {
+                        navigateToDataset(d.id);
                     }
                 });
 
+            // Paper nodes (small green circles) for expanded edges
+            node.filter(function(d) { return d.type === 'paper'; }).append('circle')
+                .attr('r', 5)
+                .attr('fill', '#059669')
+                .attr('stroke', '#047857')
+                .attr('stroke-width', 1)
+                .style('cursor', 'pointer')
+                .on('mouseover', function(event, d) {
+                    tooltip.style('display', 'block')
+                        .html('<strong>' + (d.title || d.id) + '</strong><br>arXiv: ' + d.arxiv_id)
+                        .style('left', (event.pageX + 14) + 'px')
+                        .style('top', (event.pageY - 32) + 'px');
+                })
+                .on('mousemove', function(event) {
+                    tooltip.style('left', (event.pageX + 14) + 'px')
+                        .style('top', (event.pageY - 32) + 'px');
+                })
+                .on('mouseout', function() { tooltip.style('display', 'none'); })
+                .on('click', function(event, d) {
+                    window.open('https://arxiv.org/abs/' + d.arxiv_id, '_blank');
+                });
+
             node.append('text')
-                .text(function(d) { return d.id.length > 20 ? d.id.slice(0, 19) + '...' : d.id; })
+                .text(function(d) {
+                    if (d.type === 'paper') return '';
+                    return d.id.length > 20 ? d.id.slice(0, 19) + '...' : d.id;
+                })
                 .attr('text-anchor', 'middle')
                 .attr('dy', function(d) { return d.radius + 14; })
                 .attr('font-size', function(d) { return d.isCenter ? 14 : 11; })
                 .attr('fill', '#334155')
                 .attr('pointer-events', 'none');
 
+            // Edge click handler
+            linkHit.on('click', function(event, d) {
+                if (d.expanded) {
+                    collapseEdge(d, simulation, nodes, links, linkG, linkHit, linkLine, nodeG);
+                } else {
+                    expandEdge(d, simulation, nodes, links, linkG, linkHit, linkLine, nodeG);
+                }
+            });
+
+            linkHit.on('mouseover', function(event, d) {
+                var hint = d.expanded ? 'Click to collapse' : 'Click to see papers using both';
+                tooltip.style('display', 'block')
+                    .html('<strong>' + d.source.id + ' + ' + d.target.id + '</strong><br>' +
+                          d.value.toLocaleString() + ' co-usage papers<br><small>' + hint + '</small>')
+                    .style('left', (event.pageX + 14) + 'px')
+                    .style('top', (event.pageY - 32) + 'px');
+            });
+            linkHit.on('mousemove', function(event) {
+                tooltip.style('left', (event.pageX + 14) + 'px')
+                    .style('top', (event.pageY - 32) + 'px');
+            });
+            linkHit.on('mouseout', function() { tooltip.style('display', 'none'); });
+
             simulation.on('tick', function() {
-                link.attr('x1', function(d) { return d.source.x; })
+                linkLine.attr('x1', function(d) { return d.source.x; })
+                    .attr('y1', function(d) { return d.source.y; })
+                    .attr('x2', function(d) { return d.target.x; })
+                    .attr('y2', function(d) { return d.target.y; });
+                linkHit.attr('x1', function(d) { return d.source.x; })
                     .attr('y1', function(d) { return d.source.y; })
                     .attr('x2', function(d) { return d.target.x; })
                     .attr('y2', function(d) { return d.target.y; });
                 node.attr('transform', function(d) { return 'translate(' + d.x + ',' + d.y + ')'; });
             });
 
-            // Pin center node
             nodes[0].fx = width / 2;
             nodes[0].fy = height / 2;
+        }
+
+        function navigateToDataset(name) {
+            var isGhPages = window.location.hostname.includes('github.io');
+            if (isGhPages) {
+                window.location.href = baseUrl + '/dataset_graph.html?entity=' + encodeURIComponent(name);
+            } else {
+                window.location.href = baseUrl + '/dataset/' + encodeURIComponent(name) + '/graph';
+            }
+        }
+
+        function expandEdge(edgeData, simulation, nodes, links, linkG, linkHit, linkLine, nodeG) {
+            var srcId = edgeData.source.id || edgeData.source;
+            var tgtId = edgeData.target.id || edgeData.target;
+            var url = apiUrl + '/api/dataset/' + encodeURIComponent(srcId) +
+                      '/bridge-papers?with=' + encodeURIComponent(tgtId) + '&limit=10';
+
+            edgeData.expanded = true;
+            linkLine.filter(function(d) { return d === edgeData; })
+                .attr('stroke', '#059669').attr('stroke-opacity', 0.8);
+
+            fetch(url).then(function(r) { return r.json(); }).then(function(data) {
+                var papers = data.papers || [];
+                for (var i = 0; i < papers.length; i++) {
+                    var p = papers[i];
+                    var midX = (edgeData.source.x + edgeData.target.x) / 2;
+                    var midY = (edgeData.source.y + edgeData.target.y) / 2;
+                    var paperNode = {
+                        id: 'paper-' + p.arxiv_id,
+                        type: 'paper',
+                        arxiv_id: p.arxiv_id,
+                        title: p.title,
+                        radius: 5,
+                        x: midX + (Math.random() - 0.5) * 60,
+                        y: midY + (Math.random() - 0.5) * 60,
+                        fx: null, fy: null
+                    };
+                    nodes.push(paperNode);
+
+                    // Link paper to both datasets
+                    var l1 = { source: paperNode.id, target: edgeData.source.id || edgeData.source, value: 1 };
+                    var l2 = { source: paperNode.id, target: edgeData.target.id || edgeData.target, value: 1 };
+                    links.push(l1, l2);
+
+                    // Render paper node
+                    var paperSel = nodeG.selectAll('g.node-group').data([paperNode], function(d) { return d.id; }).join('g')
+                        .attr('class', 'node-group');
+                    paperSel.append('circle')
+                        .attr('r', 5).attr('fill', '#059669').attr('stroke', '#047857').attr('stroke-width', 1)
+                        .style('cursor', 'pointer')
+                        .on('mouseover', function(event, d) {
+                            document.getElementById('graph-tooltip').style('display', 'block')
+                                .html('<strong>' + (d.title || d.id) + '</strong><br>arXiv: ' + d.arxiv_id)
+                                .style('left', (event.pageX + 14) + 'px')
+                                .style('top', (event.pageY - 32) + 'px');
+                        })
+                        .on('mousemove', function(event) {
+                            document.getElementById('graph-tooltip')
+                                .style('left', (event.pageX + 14) + 'px')
+                                .style('top', (event.pageY - 32) + 'px');
+                        })
+                        .on('mouseout', function() { document.getElementById('graph-tooltip').style('display', 'none'); })
+                        .on('click', function(event, d) {
+                            window.open('https://arxiv.org/abs/' + d.arxiv_id, '_blank');
+                        });
+                }
+
+                // Rebind links
+                linkHit = linkG.selectAll('line.hit').data(links).join('line')
+                    .attr('class', 'hit').attr('stroke', 'transparent').attr('stroke-width', 14)
+                    .style('cursor', 'pointer');
+                linkLine = linkG.selectAll('line.visible').data(links).join('line')
+                    .attr('class', 'visible')
+                    .attr('stroke', function(d) { return d.expanded ? '#059669' : '#cbd5e1'; })
+                    .attr('stroke-width', function(d) { return d.value ? Math.max(1, Math.sqrt(d.value) * 0.3) : 0.5; })
+                    .attr('stroke-opacity', 0.6);
+
+                simulation.nodes(nodes);
+                simulation.force('link', d3.forceLink(links).id(function(d) { return d.id; }).distance(function(d) {
+                    return d.value ? 130 : 60;
+                }));
+                simulation.alpha(0.5).restart();
+            });
+        }
+
+        function collapseEdge(edgeData, simulation, nodes, links, linkG, linkHit, linkLine, nodeG) {
+            edgeData.expanded = false;
+            var paperIds = {};
+            for (var i = nodes.length - 1; i >= 0; i--) {
+                if (nodes[i].type === 'paper') paperIds[nodes[i].id] = true;
+            }
+            // Remove paper nodes and their links
+            nodes = nodes.filter(function(n) { return !paperIds[n.id]; });
+            links = links.filter(function(l) {
+                var sid = l.source.id || l.source;
+                var tid = l.target.id || l.target;
+                return !paperIds[sid] && !paperIds[tid];
+            });
+
+            linkHit = linkG.selectAll('line.hit').data(links).join('line')
+                .attr('class', 'hit').attr('stroke', 'transparent').attr('stroke-width', 14)
+                .style('cursor', 'pointer');
+            linkLine = linkG.selectAll('line.visible').data(links).join('line')
+                .attr('class', 'visible')
+                .attr('stroke', '#cbd5e1')
+                .attr('stroke-width', function(d) { return d.value ? Math.max(1, Math.sqrt(d.value) * 0.3) : 0.5; })
+                .attr('stroke-opacity', 0.6);
+            nodeG.selectAll('g.node-group').data(nodes, function(d) { return d.id; }).join('g');
+
+            simulation.nodes(nodes);
+            simulation.force('link', d3.forceLink(links).id(function(d) { return d.id; }).distance(130));
+            simulation.alpha(0.3).restart();
         }
     })();
     </script>

@@ -603,3 +603,23 @@ def build_ai_context_for_datasets() -> Dict:
         return {"top_datasets": top}
     finally:
         return_db_connection(conn)
+
+
+def get_bridge_papers(dataset_a: str, dataset_b: str, limit: int = 10) -> List[Dict]:
+    """Return papers that use both dataset_a and dataset_b."""
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT d1.arxiv_id, d1.title
+            FROM dataset_usage d1
+            JOIN dataset_usage d2 ON d1.arxiv_id = d2.arxiv_id
+            WHERE d1.dataset_entity = ?
+              AND d2.dataset_entity = ?
+            GROUP BY d1.arxiv_id
+            ORDER BY d1.arxiv_id DESC
+            LIMIT ?
+        """, (dataset_a, dataset_b, limit))
+        return [dict(row) for row in cursor.fetchall()]
+    finally:
+        return_db_connection(conn)
