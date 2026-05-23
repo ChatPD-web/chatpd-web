@@ -58,6 +58,21 @@
         // Last segment is 'graph', second-to-last is the dataset entity
         var datasetEntity = decodeURIComponent(parts[parts.length - 2]);
 
+        // Fix nav links for GitHub Pages base path
+        function getBaseUrl() {
+            return path.includes('/chatpd-web/') ? '/chatpd-web' : '';
+        }
+        var baseUrl = getBaseUrl();
+        if (baseUrl) {
+            document.querySelectorAll('.top-nav a').forEach(function(link) {
+                var href = link.getAttribute('href');
+                if (href === './') link.setAttribute('href', baseUrl + '/');
+                else if (href === 'datasets') link.setAttribute('href', baseUrl + '/datasets');
+                else if (href === 'api.html') link.setAttribute('href', baseUrl + '/api.html');
+            });
+            document.getElementById('css-link').href = baseUrl + '/static/css/styles.css';
+        }
+
         document.getElementById('graph-subtitle').textContent = datasetEntity;
 
         var container = document.getElementById('graph-container');
@@ -190,7 +205,7 @@
                 .on('mouseleave', function() { tooltip.style('opacity', 0); })
                 .on('click', function(event, d) {
                     if (!d.isCenter) {
-                        window.location.href = './' + encodeURIComponent(d.id) + '/graph';
+                        window.location.href = baseUrl + '/dataset/' + encodeURIComponent(d.id) + '/graph';
                     }
                 })
                 .style('cursor', function(d) { return d.isCenter ? 'default' : 'pointer'; });
