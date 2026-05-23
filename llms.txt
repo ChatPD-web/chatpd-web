@@ -15,6 +15,7 @@ This website loads all data dynamically via a REST API. The HTML pages contain n
 - `GET /api/data-status` — total records, datasets, last update time
 - `GET /api/datasets?page=1&per_page=24&search=<keyword>` — list dataset entities with usage counts
 - `GET /api/dataset/<dataset_entity>` — details, usage records, `_ai_context` summary, and task distribution
+- `GET /api/dataset/<entity>/graph-data?top_n=15` — related datasets + trends in one call (fastest for graph)
 - `GET /api/dataset/<entity>/related?top_n=20` — datasets co-used with this one
 - `GET /api/dataset/<entity>/trends` — monthly and yearly usage trends
 - `GET /api/query?q=<keywords>&field=all&sort_by=latest&page=1&per_page=20` — search records with `_ai_context`
