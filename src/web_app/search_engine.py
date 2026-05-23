@@ -19,7 +19,13 @@ from .query_service import (
     QUERYABLE_FIELDS,
     QUERY_MATCH_MODES,
     SORTABLE_FIELDS,
+    build_ai_context_for_dataset,
+    build_ai_context_for_datasets,
+    build_ai_context_for_paper,
+    build_ai_context_for_query,
+    get_dataset_trends,
     get_records_by_arxiv_id,
+    get_related_datasets,
     search_records,
 )
 
@@ -71,12 +77,8 @@ def create_indexes():
             "CREATE INDEX IF NOT EXISTS idx_task ON dataset_usage(task);",
             "CREATE INDEX IF NOT EXISTS idx_dataset_entity ON dataset_usage(dataset_entity);",
             "CREATE INDEX IF NOT EXISTS idx_arxiv_id ON dataset_usage(arxiv_id);",
-            "CREATE INDEX IF NOT EXISTS idx_arxiv_time_key ON dataset_usage(arxiv_time_key);",
-            "CREATE INDEX IF NOT EXISTS idx_arxiv_yymm_key ON dataset_usage(arxiv_yymm_key);",
             "CREATE INDEX IF NOT EXISTS idx_title ON dataset_usage(title);",
             "CREATE INDEX IF NOT EXISTS idx_dataset_name ON dataset_usage(dataset_name);",
-            "CREATE INDEX IF NOT EXISTS idx_arxiv_time_title ON dataset_usage(arxiv_time_key DESC, title ASC);",
-            # 复合索引for常见查询组合
             "CREATE INDEX IF NOT EXISTS idx_data_type_task ON dataset_usage(data_type, task);",
         ]
         
@@ -241,6 +243,8 @@ def ensure_cache_fresh():
         if current_mtime != cached_db_mtime:
             get_top_data_types_cached.cache_clear()
             get_top_tasks_cached.cache_clear()
+            get_related_datasets.cache_clear()
+            get_dataset_trends.cache_clear()
             cached_db_mtime = current_mtime
 
 
@@ -530,6 +534,12 @@ def search_api():
             arxiv_from=arxiv_from,
             arxiv_to=arxiv_to,
         )
+        ai_ctx = build_ai_context_for_query(
+            response["results_count"],
+            keywords or "",
+            response["results"][:20],
+        )
+        response["_ai_context"] = ai_ctx
         response["query_meta"]["api_mode"] = "simple_compat"
         return json_response(response)
     except ValueError as e:
@@ -643,22 +653,27 @@ def unified_query_api():
             )
 
     try:
-        return json_response(
-            search_records(
-                q=q,
-                field=field,
-                match_mode=match_mode,
-                page=page,
-                per_page=per_page,
-                logic=logic,
-                conditions=conditions,
-                sort_by=sort_by,
-                sort_order=sort_order,
-                include_stats=include_stats,
-                arxiv_from=arxiv_from,
-                arxiv_to=arxiv_to,
-            )
+        response = search_records(
+            q=q,
+            field=field,
+            match_mode=match_mode,
+            page=page,
+            per_page=per_page,
+            logic=logic,
+            conditions=conditions,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            include_stats=include_stats,
+            arxiv_from=arxiv_from,
+            arxiv_to=arxiv_to,
         )
+        ai_ctx = build_ai_context_for_query(
+            response["results_count"],
+            q or "",
+            response["results"][:20],
+        )
+        response["_ai_context"] = ai_ctx
+        return json_response(response)
     except ValueError as e:
         return json_response({"error": str(e)}, 400)
     except Exception as e:
@@ -685,11 +700,13 @@ def paper_detail_api(arxiv_id):
             {record.get("data_type") for record in records if record.get("data_type")}
         )
         paper_title = records[0].get("title") if records else None
+        ai_context = build_ai_context_for_paper(records)
         return json_response(
             {
                 "arxiv_id": arxiv_id,
                 "count": len(records),
                 "paper_title": paper_title,
+                "_ai_context": ai_context,
                 "summary": {
                     "dataset_count": len(unique_datasets),
                     "task_count": len(unique_tasks),
@@ -746,13 +763,16 @@ def datasets_api():
     
     datasets = [dict(row) for row in cursor.fetchall()]
     return_db_connection(conn)
-    
+
+    ai_context = build_ai_context_for_datasets()
+
     return (
         json.dumps({
             "datasets": datasets,
             "total_count": total_count,
             "total_pages": ceil(total_count / per_page),
-            "current_page": page
+            "current_page": page,
+            "_ai_context": ai_context,
         }, ensure_ascii=False),
         200,
         {"Content-Type": "application/json"},
@@ -781,11 +801,14 @@ def dataset_detail_api(dataset_entity):
         {record.get("location") for record in details if record.get("location")}
     )
 
+    ai_context = build_ai_context_for_dataset(dataset_entity, details)
+
     return (
         json.dumps(
             {
                 "dataset": details[0],
                 "usage_records": details,
+                "_ai_context": ai_context,
                 "summary": {
                     "usage_record_count": len(details),
                     "paper_count": len(unique_papers),
@@ -856,6 +879,41 @@ def dataset_detail(dataset_entity):
     
     dataset_info = details[0]
     return render_template("dataset.html", dataset=dataset_info, records=details)
+
+
+@app.route("/api/dataset/<dataset_entity>/related", methods=["GET"])
+def dataset_related_api(dataset_entity):
+    """Return datasets co-used with the given dataset."""
+    try:
+        top_n = min(int(request.args.get("top_n", 20)), 50)
+        result = get_related_datasets(dataset_entity, top_n)
+        if not result["related"]:
+            details = get_dataset_details(dataset_entity)
+            if not details:
+                return json_response({"error": "Dataset not found"}, 404)
+        return json_response(result)
+    except Exception as e:
+        app.logger.error(f"Dataset related API error: {str(e)}")
+        return json_response({"error": "Internal server error"}, 500)
+
+
+@app.route("/api/dataset/<dataset_entity>/trends", methods=["GET"])
+def dataset_trends_api(dataset_entity):
+    """Return monthly and yearly usage trends for a dataset."""
+    try:
+        result = get_dataset_trends(dataset_entity)
+        if not result["trends"]:
+            return json_response({"error": "Dataset not found"}, 404)
+        return json_response(result)
+    except Exception as e:
+        app.logger.error(f"Dataset trends API error: {str(e)}")
+        return json_response({"error": "Internal server error"}, 500)
+
+
+@app.route("/dataset/<dataset_entity>/graph")
+def dataset_graph(dataset_entity):
+    """Display the dataset co-usage force-directed graph."""
+    return render_template("dataset_graph.html")
 
 
 if __name__ == "__main__":

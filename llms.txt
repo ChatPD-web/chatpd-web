@@ -14,9 +14,11 @@ This website loads all data dynamically via a REST API. The HTML pages contain n
 
 - `GET /api/data-status` — total records, datasets, last update time
 - `GET /api/datasets?page=1&per_page=24&search=<keyword>` — list dataset entities with usage counts
-- `GET /api/dataset/<dataset_entity>` — details, usage records, and summary for one dataset
-- `GET /api/query?q=<keywords>&field=all&sort_by=latest&page=1&per_page=20` — search records
-- `GET /api/paper/<arxiv_id>` — all dataset usage records for a paper
+- `GET /api/dataset/<dataset_entity>` — details, usage records, `_ai_context` summary, and task distribution
+- `GET /api/dataset/<entity>/related?top_n=20` — datasets co-used with this one
+- `GET /api/dataset/<entity>/trends` — monthly and yearly usage trends
+- `GET /api/query?q=<keywords>&field=all&sort_by=latest&page=1&per_page=20` — search records with `_ai_context`
+- `GET /api/paper/<arxiv_id>` — all dataset usage records for a paper with `_ai_context`
 - `GET /api/filters` — available data types and tasks for filtering
 
 ## Query parameters for /api/query
@@ -36,6 +38,8 @@ This website loads all data dynamically via a REST API. The HTML pages contain n
 ```
 GET https://testweb.241814.xyz/chatpd/api/data-status
 GET https://testweb.241814.xyz/chatpd/api/query?q=ImageNet&field=dataset_name&sort_by=latest&page=1&per_page=20
+GET https://testweb.241814.xyz/chatpd/api/dataset/ImageNet/related?top_n=10
+GET https://testweb.241814.xyz/chatpd/api/dataset/ImageNet/trends
 GET https://testweb.241814.xyz/chatpd/api/datasets?page=1&per_page=24
 GET https://testweb.241814.xyz/chatpd/api/paper/2301.12345
 GET https://testweb.241814.xyz/chatpd/api/dataset/ImageNet
@@ -45,4 +49,5 @@ GET https://testweb.241814.xyz/chatpd/api/dataset/ImageNet
 
 - https://chatpd-web.github.io/chatpd-web/ — home / search UI
 - https://chatpd-web.github.io/chatpd-web/datasets — dataset browser
+- https://chatpd-web.github.io/chatpd-web/dataset/ImageNet/graph — co-usage graph visualization
 - https://chatpd-web.github.io/chatpd-web/api.html — API documentation
