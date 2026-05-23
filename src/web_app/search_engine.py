@@ -881,6 +881,24 @@ def dataset_detail(dataset_entity):
     return render_template("dataset.html", dataset=dataset_info, records=details)
 
 
+@app.route("/api/dataset/<dataset_entity>/graph-data", methods=["GET"])
+def dataset_graph_data_api(dataset_entity):
+    """Return combined graph data: related datasets + trends in one call."""
+    try:
+        top_n = min(int(request.args.get("top_n", 15)), 30)
+        related = get_related_datasets(dataset_entity, top_n)
+        trends = get_dataset_trends(dataset_entity)
+        return json_response({
+            "dataset_entity": dataset_entity,
+            "related": related["related"],
+            "total_related": related["total_related"],
+            "yearly_summary": trends["yearly_summary"],
+        })
+    except Exception as e:
+        app.logger.error(f"Graph data API error: {str(e)}")
+        return json_response({"error": "Internal server error"}, 500)
+
+
 @app.route("/api/dataset/<dataset_entity>/related", methods=["GET"])
 def dataset_related_api(dataset_entity):
     """Return datasets co-used with the given dataset."""

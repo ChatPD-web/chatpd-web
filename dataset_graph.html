@@ -3,20 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dataset Graph - ChatPD</title>
+    <title>ChatPD - Dataset Graph</title>
     <link id="css-link" rel="stylesheet" href="static/css/styles.css">
-    <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
         .graph-container { width: 100%; height: 80vh; min-height: 500px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; position: relative; }
-        .graph-tooltip { position: absolute; padding: 8px 12px; background: rgba(0,0,0,0.85); color: white; border-radius: 6px; font-size: 13px; pointer-events: none; opacity: 0; transition: opacity 0.15s; z-index: 10; }
+        .graph-tooltip { position: fixed; padding: 8px 12px; background: rgba(0,0,0,0.85); color: white; border-radius: 6px; font-size: 13px; pointer-events: none; z-index: 100; display: none; }
         .graph-loading, .graph-error, .graph-empty { display: flex; align-items: center; justify-content: center; height: 60vh; font-size: 16px; color: #64748b; }
+        .graph-loading .spinner { display: inline-block; width: 24px; height: 24px; border: 3px solid #e2e8f0; border-top-color: #4f46e5; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 10px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
         .graph-error button { margin-left: 12px; padding: 6px 16px; background: #4f46e5; color: white; border: none; border-radius: 4px; cursor: pointer; }
         .graph-header { margin-bottom: 16px; }
         .graph-header h2 { margin: 0; font-size: 22px; color: #1e293b; }
-        .graph-legend { display: flex; gap: 16px; margin-top: 8px; font-size: 13px; color: #64748b; }
+        .graph-legend { display: flex; gap: 16px; margin-top: 8px; font-size: 13px; color: #64748b; flex-wrap: wrap; }
         .graph-legend span { display: flex; align-items: center; gap: 4px; }
         .legend-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
-        .graph-stats { display: flex; gap: 24px; margin-top: 8px; }
+        .graph-stats { display: flex; gap: 24px; margin-top: 8px; flex-wrap: wrap; }
         .graph-stat { font-size: 14px; color: #475569; }
         .graph-stat strong { color: #1e293b; }
     </style>
@@ -36,41 +37,43 @@
             <p id="graph-subtitle" style="color:#64748b;margin:4px 0">Loading...</p>
             <div class="graph-legend">
                 <span><span class="legend-dot" style="background:#4f46e5"></span> Target dataset</span>
-                <span><span class="legend-dot" style="background:#7c3aed"></span> Related datasets</span>
-                <span>Edge = co-usage count</span>
+                <span><span class="legend-dot" style="background:#7c3aed"></span> Related (co-used in same papers)</span>
+                <span>Node size = co-usage count</span>
             </div>
             <div class="graph-stats" id="graph-stats"></div>
         </div>
 
-        <div id="graph-loading" class="graph-loading">Loading co-usage data...</div>
-        <div id="graph-error" class="graph-error" style="display:none">
-            Failed to load graph data. <button onclick="location.reload()">Retry</button>
+        <div id="graph-loading" class="graph-loading">
+            <span class="spinner"></span> Loading co-usage data...
         </div>
-        <div id="graph-empty" class="graph-empty" style="display:none">No co-used datasets found for this dataset.</div>
+        <div id="graph-error" class="graph-error" style="display:none">
+            <span>Failed to load graph data.</span>
+            <button onclick="location.reload()">Retry</button>
+        </div>
+        <div id="graph-empty" class="graph-empty" style="display:none">
+            No co-used datasets found for this dataset.
+        </div>
         <div class="graph-container" id="graph-container" style="display:none"></div>
         <div class="graph-tooltip" id="graph-tooltip"></div>
     </div>
 
+    <script src="https://d3js.org/d3.v7.min.js"></script>
     <script>
     (function() {
-        // Read dataset from query param (for static hosting like GitHub Pages)
-        // Fall back to path-based extraction (for Flask server route)
+        var path = window.location.pathname;
         var params = new URLSearchParams(window.location.search);
         var datasetEntity = params.get('entity');
         if (!datasetEntity) {
-            var pathParts = window.location.pathname.split('/').filter(Boolean);
-            // Path: /dataset/{name}/graph → second-to-last = dataset name
-            // Path: /chatpd-web/dataset/{name}/graph → second-to-last = dataset name
-            if (pathParts[pathParts.length - 1] === 'graph') {
-                datasetEntity = pathParts[pathParts.length - 2];
+            var parts = path.split('/').filter(Boolean);
+            if (parts[parts.length - 1] === 'graph') {
+                datasetEntity = decodeURIComponent(parts[parts.length - 2]);
             }
         }
         if (!datasetEntity) {
-            document.getElementById('graph-loading').textContent = 'No dataset specified. Use ?entity=DatasetName';
+            document.getElementById('graph-loading').textContent = 'Missing dataset name. Use ?entity=DatasetName';
             return;
         }
 
-        // Fix nav links for GitHub Pages base path
         function getBaseUrl() {
             return path.includes('/chatpd-web/') ? '/chatpd-web' : '';
         }
@@ -85,15 +88,6 @@
             document.getElementById('css-link').href = baseUrl + '/static/css/styles.css';
         }
 
-        document.getElementById('graph-subtitle').textContent = datasetEntity;
-
-        var container = document.getElementById('graph-container');
-        var tooltip = document.getElementById('graph-tooltip');
-        var loadingEl = document.getElementById('graph-loading');
-        var errorEl = document.getElementById('graph-error');
-        var emptyEl = document.getElementById('graph-empty');
-        var statsEl = document.getElementById('graph-stats');
-
         function getApiUrl() {
             var hostname = window.location.hostname;
             if (hostname === 'chatpd-web.github.io' || hostname.includes('github.io')) {
@@ -104,145 +98,179 @@
             }
             return 'https://testweb.241814.xyz/chatpd';
         }
-
         var apiUrl = getApiUrl();
 
-        Promise.all([
-            fetch(apiUrl + '/api/dataset/' + encodeURIComponent(datasetEntity) + '/related?top_n=20').then(function(r) { return r.json(); }),
-            fetch(apiUrl + '/api/dataset/' + encodeURIComponent(datasetEntity) + '/trends').then(function(r) { return r.json(); })
-        ]).then(function(results) {
-            var relatedData = results[0];
-            var trendsData = results[1];
+        function showError(msg) {
+            document.getElementById('graph-loading').style.display = 'none';
+            var errEl = document.getElementById('graph-error');
+            errEl.style.display = 'flex';
+            errEl.querySelector('span').textContent = msg;
+        }
 
-            if (relatedData.error) throw new Error(relatedData.error);
-            if (!relatedData.related || relatedData.related.length === 0) {
-                loadingEl.style.display = 'none';
-                emptyEl.style.display = 'flex';
-                document.getElementById('graph-subtitle').textContent =
-                    datasetEntity + ' - no co-used datasets found';
-                return;
-            }
+        document.getElementById('graph-subtitle').textContent = datasetEntity;
 
-            loadingEl.style.display = 'none';
+        // SINGLE API call with timeout
+        var controller = new AbortController();
+        var timeoutId = setTimeout(function() {
+            controller.abort();
+            showError('Request timed out. The API may be busy. Please try again.');
+        }, 15000);
+
+        var url = apiUrl + '/api/dataset/' + encodeURIComponent(datasetEntity) + '/graph-data?top_n=15';
+        fetch(url, { signal: controller.signal })
+            .then(function(r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.json();
+            })
+            .then(function(data) {
+                clearTimeout(timeoutId);
+
+                if (data.error) throw new Error(data.error);
+
+                var related = data.related || [];
+                if (related.length === 0) {
+                    document.getElementById('graph-loading').style.display = 'none';
+                    document.getElementById('graph-empty').style.display = 'flex';
+                    document.getElementById('graph-subtitle').textContent =
+                        datasetEntity + ' - no co-used datasets found';
+                    return;
+                }
+
+                var yearly = data.yearly_summary || [];
+                var totalPapers = 0;
+                for (var i = 0; i < yearly.length; i++) { totalPapers += yearly[i].paper_count; }
+
+                document.getElementById('graph-loading').style.display = 'none';
+                document.getElementById('graph-stats').innerHTML =
+                    '<div class="graph-stat">Related datasets: <strong>' +
+                    (data.total_related || related.length).toLocaleString() + '</strong></div>' +
+                    '<div class="graph-stat">Total papers: <strong>' +
+                    totalPapers.toLocaleString() + '</strong></div>';
+
+                renderGraph(related, data.total_related || 0);
+            })
+            .catch(function(err) {
+                clearTimeout(timeoutId);
+                if (err.name === 'AbortError') return; // timeout already handled
+                console.error(err);
+                showError(err.message || 'Network error. Please try again.');
+            });
+
+        function renderGraph(related, totalRelated) {
+            var container = document.getElementById('graph-container');
             container.style.display = 'block';
-
-            var yearly = trendsData.yearly_summary || [];
-            var totalPapers = 0;
-            for (var i = 0; i < yearly.length; i++) { totalPapers += yearly[i].paper_count; }
-            statsEl.innerHTML =
-                '<div class="graph-stat">Related datasets: <strong>' + relatedData.total_related.toLocaleString() + '</strong></div>' +
-                '<div class="graph-stat">Total papers: <strong>' + totalPapers.toLocaleString() + '</strong></div>';
+            var tooltip = document.getElementById('graph-tooltip');
 
             var nodes = [{
                 id: datasetEntity,
                 isCenter: true,
                 radius: 28,
-                co_usage_count: relatedData.total_related || 0
+                co_usage_count: totalRelated
             }];
             var links = [];
 
-            for (var i = 0; i < relatedData.related.length; i++) {
-                var r = relatedData.related[i];
+            for (var i = 0; i < related.length; i++) {
+                var r = related[i];
+                var name = r.entity;
+                var count = r.co_usage_count;
                 nodes.push({
-                    id: r.entity,
+                    id: name,
                     isCenter: false,
-                    radius: Math.max(8, Math.sqrt(r.co_usage_count) * 0.8),
-                    co_usage_count: r.co_usage_count
+                    radius: Math.max(8, Math.min(24, Math.sqrt(count) * 0.9)),
+                    co_usage_count: count
                 });
-                links.push({
-                    source: datasetEntity,
-                    target: r.entity,
-                    value: r.co_usage_count
-                });
+                links.push({ source: datasetEntity, target: name, value: count });
             }
 
-            var width = container.clientWidth;
-            var height = Math.max(500, window.innerHeight * 0.7);
+            var width = container.clientWidth || 900;
+            var height = Math.max(500, window.innerHeight * 0.72);
             container.style.height = height + 'px';
 
-            var svg = d3.select('#graph-container')
-                .append('svg')
-                .attr('width', width)
-                .attr('height', height);
+            var svg = d3.select('#graph-container').append('svg')
+                .attr('width', '100%').attr('height', '100%')
+                .attr('viewBox', [0, 0, width, height]);
 
             var g = svg.append('g');
 
             var zoom = d3.zoom()
-                .scaleExtent([0.3, 4])
+                .scaleExtent([0.25, 4])
                 .on('zoom', function(event) { g.attr('transform', event.transform); });
             svg.call(zoom);
 
+            // Scale edge width: sqrt to avoid extremes
+            var maxVal = related[0] ? related[0].co_usage_count : 1;
+            var edgeScale = d3.scaleLinear().domain([1, maxVal]).range([1, 6]);
+
             var simulation = d3.forceSimulation(nodes)
-                .force('link', d3.forceLink(links).id(function(d) { return d.id; }).distance(120))
-                .force('charge', d3.forceManyBody().strength(-300))
+                .force('link', d3.forceLink(links).id(function(d) { return d.id; }).distance(130))
+                .force('charge', d3.forceManyBody().strength(-350))
                 .force('center', d3.forceCenter(width / 2, height / 2))
-                .force('collision', d3.forceCollide().radius(function(d) { return d.radius + 8; }));
+                .force('collision', d3.forceCollide().radius(function(d) { return d.radius + 10; }));
 
-            var link = g.append('g')
-                .selectAll('line')
-                .data(links)
-                .join('line')
+            var link = g.append('g').selectAll('line').data(links).join('line')
                 .attr('stroke', '#cbd5e1')
-                .attr('stroke-width', function(d) { return Math.max(1, Math.sqrt(d.value) * 0.3); })
-                .attr('stroke-opacity', 0.6);
+                .attr('stroke-width', function(d) { return edgeScale(d.value); })
+                .attr('stroke-opacity', 0.5);
 
-            var node = g.append('g')
-                .selectAll('g')
-                .data(nodes)
-                .join('g')
+            var node = g.append('g').selectAll('g').data(nodes).join('g')
                 .call(d3.drag()
                     .on('start', function(event, d) {
                         if (!event.active) simulation.alphaTarget(0.3).restart();
                         d.fx = d.x; d.fy = d.y;
                     })
-                    .on('drag', function(event, d) { d.fx = event.x; d.fy = event.y; })
+                    .on('drag', function(event, d) {
+                        d.fx = event.x; d.fy = event.y;
+                    })
                     .on('end', function(event, d) {
                         if (!event.active) simulation.alphaTarget(0);
                         if (!d.isCenter) { d.fx = null; d.fy = null; }
-                    })
-                );
+                    }));
 
             node.append('circle')
                 .attr('r', function(d) { return d.radius; })
                 .attr('fill', function(d) { return d.isCenter ? '#4f46e5' : '#7c3aed'; })
-                .attr('opacity', function(d) { return d.isCenter ? 1 : 0.7; })
+                .attr('opacity', function(d) { return d.isCenter ? 1 : 0.75; })
                 .attr('stroke', function(d) { return d.isCenter ? '#3730a3' : '#5b21b6'; })
-                .attr('stroke-width', function(d) { return d.isCenter ? 3 : 1; })
-                .on('mouseenter', function(event, d) {
-                    tooltip.style('opacity', 1)
+                .attr('stroke-width', function(d) { return d.isCenter ? 3 : 1.5; })
+                .style('cursor', function(d) { return d.isCenter ? 'default' : 'pointer'; })
+                .on('mouseover', function(event, d) {
+                    tooltip.style('display', 'block')
                         .html('<strong>' + d.id + '</strong><br>Co-usage: ' + d.co_usage_count.toLocaleString())
-                        .style('left', (event.pageX + 12) + 'px')
-                        .style('top', (event.pageY - 28) + 'px');
+                        .style('left', (event.pageX + 14) + 'px')
+                        .style('top', (event.pageY - 32) + 'px');
                 })
-                .on('mouseleave', function() { tooltip.style('opacity', 0); })
+                .on('mousemove', function(event) {
+                    tooltip.style('left', (event.pageX + 14) + 'px')
+                        .style('top', (event.pageY - 32) + 'px');
+                })
+                .on('mouseout', function() { tooltip.style('display', 'none'); })
                 .on('click', function(event, d) {
                     if (!d.isCenter) {
-                        window.location.href = baseUrl + '/dataset/' + encodeURIComponent(d.id) + '/graph';
+                        var link = baseUrl + '/dataset_graph.html?entity=' + encodeURIComponent(d.id);
+                        window.location.href = link;
                     }
-                })
-                .style('cursor', function(d) { return d.isCenter ? 'default' : 'pointer'; });
+                });
 
             node.append('text')
-                .text(function(d) { return d.id.length > 18 ? d.id.slice(0, 17) + '...' : d.id; })
+                .text(function(d) { return d.id.length > 20 ? d.id.slice(0, 19) + '...' : d.id; })
                 .attr('text-anchor', 'middle')
                 .attr('dy', function(d) { return d.radius + 14; })
-                .attr('font-size', function(d) { return d.isCenter ? 13 : 11; })
-                .attr('fill', '#334155');
+                .attr('font-size', function(d) { return d.isCenter ? 14 : 11; })
+                .attr('fill', '#334155')
+                .attr('pointer-events', 'none');
 
             simulation.on('tick', function() {
-                link.attr('x1', function(d) { return d.source.x; }).attr('y1', function(d) { return d.source.y; })
-                    .attr('x2', function(d) { return d.target.x; }).attr('y2', function(d) { return d.target.y; });
+                link.attr('x1', function(d) { return d.source.x; })
+                    .attr('y1', function(d) { return d.source.y; })
+                    .attr('x2', function(d) { return d.target.x; })
+                    .attr('y2', function(d) { return d.target.y; });
                 node.attr('transform', function(d) { return 'translate(' + d.x + ',' + d.y + ')'; });
             });
 
-            var centerNode = nodes[0];
-            centerNode.fx = width / 2;
-            centerNode.fy = height / 2;
-        }).catch(function(err) {
-            console.error(err);
-            loadingEl.style.display = 'none';
-            errorEl.style.display = 'flex';
-        });
+            // Pin center node
+            nodes[0].fx = width / 2;
+            nodes[0].fy = height / 2;
+        }
     })();
     </script>
 </body>
