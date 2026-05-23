@@ -28,4 +28,4 @@ logs/*
 chapd.service
 DEPLOYMENT_README.md
 install_service.sh
-start_chatpd.sh
+start_chatpd.sh.superpowers/

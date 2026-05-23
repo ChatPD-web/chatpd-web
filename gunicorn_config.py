@@ -2,7 +2,7 @@ import multiprocessing
 import os
 
 # 从环境变量读取敏感配置
-bind = os.getenv("GUNICORN_BIND", "0.0.0.0:5000")
+bind = os.getenv("GUNICORN_BIND", "127.0.0.1:5000")
 
 # 优化worker配置
 workers = min(multiprocessing.cpu_count() * 2 + 1, 8)  # 限制最大worker数
@@ -26,9 +26,7 @@ errorlog = f"{log_dir}/error.log"
 loglevel = os.getenv("LOG_LEVEL", "info")
 access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s" %(D)s'
 
-# SSL配置
-certfile = os.getenv("SSL_CERT_PATH", "/etc/letsencrypt/live/testweb.241814.xyz/fullchain.pem")
-keyfile = os.getenv("SSL_KEY_PATH", "/etc/letsencrypt/live/testweb.241814.xyz/privkey.pem")
+# SSL is handled by nginx — gunicorn listens on plain HTTP
 
 # 性能调优
 backlog = 2048  # 增加backlog队列大小
