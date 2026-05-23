@@ -1,0 +1,137 @@
+<h2>人类用户可视化 — 四种方向</h2>
+<p class="subtitle">现有数据：765K 条 paper-dataset 关系。选择最想先做的可视化类型。</p>
+
+<div class="cards">
+  <div class="card" data-choice="viz1" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">Dataset Detail Page — 增强版</div>
+        <div class="mockup-body" style="padding:16px">
+          <div style="display:flex;gap:12px">
+            <div style="flex:1;background:#f0f4f8;border-radius:8px;padding:12px;min-height:140px">
+              <p style="font-weight:600;margin:0 0 8px">ImageNet 使用趋势</p>
+              <div style="background:#e0e7ff;height:80px;border-radius:4px;display:flex;align-items:flex-end;padding:4px">
+                <div style="background:#4f46e5;width:16px;height:40%;margin:0 2px;border-radius:2px"></div>
+                <div style="background:#4f46e5;width:16px;height:55%;margin:0 2px;border-radius:2px"></div>
+                <div style="background:#4f46e5;width:16px;height:65%;margin:0 2px;border-radius:2px"></div>
+                <div style="background:#4f46e5;width:16px;height:80%;margin:0 2px;border-radius:2px"></div>
+                <div style="background:#4f46e5;width:16px;height:72%;margin:0 2px;border-radius:2px"></div>
+                <div style="background:#4f46e5;width:16px;height:90%;margin:0 2px;border-radius:2px"></div>
+              </div>
+              <p style="font-size:11px;color:#6b7280;margin:4px 0 0">2020 — 2026</p>
+            </div>
+            <div style="flex:1;background:#f0f4f8;border-radius:8px;padding:12px;min-height:140px">
+              <p style="font-weight:600;margin:0 0 8px">Task 分布</p>
+              <div style="display:flex;gap:4px;flex-wrap:wrap">
+                <span style="background:#dbeafe;padding:2px 8px;border-radius:10px;font-size:11px">Classification 45%</span>
+                <span style="background:#d1fae5;padding:2px 8px;border-radius:10px;font-size:11px">Detection 22%</span>
+                <span style="background:#fef3c7;padding:2px 8px;border-radius:10px;font-size:11px">Segmentation 15%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>数据集详情页增强</h3>
+      <p>在现有 dataset 页面上加趋势图、Task 分布、Data Type 分布。<strong>改动最小，马上可用。</strong></p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="viz2" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">Dataset Co-usage Graph</div>
+        <div class="mockup-body" style="padding:16px;text-align:center">
+          <svg width="280" height="150" viewBox="0 0 280 150">
+            <circle cx="140" cy="75" r="28" fill="#4f46e5" opacity="0.8"/>
+            <text x="140" y="70" text-anchor="middle" fill="white" font-size="9">ImageNet</text>
+            <text x="140" y="83" text-anchor="middle" fill="white" font-size="7">(中心数据集)</text>
+            <circle cx="60" cy="35" r="16" fill="#7c3aed" opacity="0.6"/>
+            <text x="60" y="32" text-anchor="middle" fill="white" font-size="7">COCO</text>
+            <text x="60" y="44" text-anchor="middle" fill="white" font-size="6">共现: 234</text>
+            <line x1="118" y1="64" x2="72" y2="45" stroke="#ddd" stroke-width="1.5"/>
+            <circle cx="220" cy="35" r="14" fill="#7c3aed" opacity="0.6"/>
+            <text x="220" y="32" text-anchor="middle" fill="white" font-size="7">CIFAR-10</text>
+            <text x="220" y="44" text-anchor="middle" fill="white" font-size="6">共现: 189</text>
+            <line x1="162" y2="45" x2="208" y2="45" stroke="#ddd" stroke-width="1.5"/>
+            <circle cx="30" cy="115" r="12" fill="#a78bfa" opacity="0.5"/>
+            <text x="30" y="112" text-anchor="middle" fill="white" font-size="6">Pascal VOC</text>
+            <line x1="118" y1="86" x2="40" y2="110" stroke="#ddd" stroke-width="1.5"/>
+            <circle cx="250" cy="115" r="11" fill="#a78bfa" opacity="0.5"/>
+            <line x1="162" y1="86" x2="242" y2="110" stroke="#ddd" stroke-width="1.5"/>
+            <circle cx="140" cy="130" r="10" fill="#c4b5fd" opacity="0.4"/>
+            <line x1="140" y1="103" x2="140" y2="120" stroke="#ddd" stroke-width="1.5"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>数据集共现图谱</h3>
+      <p>类似 Connected Papers 的力导向图。节点 = 数据集，边 = 论文中共同使用。<strong>最接近 "Connected Papers" 体验。</strong></p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="viz3" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">Paper-Dataset Bipartite Network</div>
+        <div class="mockup-body" style="padding:12px;text-align:center">
+          <svg width="280" height="140" viewBox="0 0 280 140">
+            <!-- Paper nodes (left side) -->
+            <circle cx="30" cy="25" r="10" fill="#059669"/><text x="30" y="16" text-anchor="middle" fill="white" font-size="5">P1</text>
+            <circle cx="30" cy="65" r="10" fill="#059669"/><text x="30" y="56" text-anchor="middle" fill="white" font-size="5">P2</text>
+            <circle cx="30" cy="105" r="10" fill="#059669"/><text x="30" y="96" text-anchor="middle" fill="white" font-size="5">P3</text>
+            <!-- Dataset nodes (right side) -->
+            <circle cx="250" cy="25" r="12" fill="#4f46e5"/><text x="250" y="18" text-anchor="middle" fill="white" font-size="6">ImageNet</text>
+            <circle cx="250" cy="75" r="12" fill="#7c3aed"/><text x="250" y="68" text-anchor="middle" fill="white" font-size="6">COCO</text>
+            <circle cx="250" cy="120" r="10" fill="#a78bfa"/><text x="250" y="113" text-anchor="middle" fill="white" font-size="5">CIFAR</text>
+            <!-- Edges -->
+            <line x1="40" y1="25" x2="238" y2="25" stroke="#cbd5e1" stroke-width="1"/>
+            <line x1="40" y1="25" x2="238" y2="75" stroke="#cbd5e1" stroke-width="1"/>
+            <line x1="40" y1="65" x2="238" y2="25" stroke="#cbd5e1" stroke-width="1"/>
+            <line x1="40" y1="65" x2="238" y2="75" stroke="#cbd5e1" stroke-width="1"/>
+            <line x1="40" y1="105" x2="238" y2="120" stroke="#cbd5e1" stroke-width="1"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>论文-数据集 二部图</h3>
+      <p>左侧论文，右侧数据集，连线 = 使用关系。<strong>适合展示单篇论文的数据集全景。</strong></p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="viz4" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">Dataset Landscape / Scatter</div>
+        <div class="mockup-body" style="padding:12px;text-align:center">
+          <svg width="280" height="140" viewBox="0 0 280 140">
+            <rect x="0" y="0" width="280" height="140" fill="#f8fafc"/>
+            <!-- Axes -->
+            <line x1="40" y1="120" x2="260" y2="120" stroke="#94a3b8" stroke-width="1"/>
+            <line x1="40" y1="10" x2="40" y2="120" stroke="#94a3b8" stroke-width="1"/>
+            <text x="140" y="135" text-anchor="middle" font-size="9" fill="#64748b">使用论文数 →</text>
+            <text x="15" y="70" text-anchor="middle" font-size="9" fill="#64748b" transform="rotate(-90,15,70)">增长速率 →</text>
+            <!-- Bubbles -->
+            <circle cx="200" cy="45" r="25" fill="#4f46e5" opacity="0.6"/>
+            <text x="200" y="42" text-anchor="middle" fill="white" font-size="8">ImageNet</text>
+            <text x="200" y="54" text-anchor="middle" fill="white" font-size="6">8,421 papers</text>
+            <circle cx="155" cy="65" r="18" fill="#7c3aed" opacity="0.6"/>
+            <text x="155" y="62" text-anchor="middle" fill="white" font-size="7">COCO</text>
+            <circle cx="110" cy="85" r="14" fill="#a78bfa" opacity="0.5"/>
+            <text x="110" y="82" text-anchor="middle" fill="white" font-size="6">CIFAR-10</text>
+            <circle cx="70" cy="55" r="20" fill="#8b5cf6" opacity="0.5"/>
+            <text x="70" y="52" text-anchor="middle" fill="white" font-size="7">LAION-5B</text>
+            <text x="70" y="64" text-anchor="middle" fill="white" font-size="6">🔥 高速增长</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>数据集全景图</h3>
+      <p>Bubble chart 展示所有数据集的分布 — X轴使用量、Y轴增长速度、气泡大小=引用数。<strong>适合发现"谁在崛起"。</strong></p>
+    </div>
+  </div>
+</div>

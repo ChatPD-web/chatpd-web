@@ -17,8 +17,6 @@
         .chart-wrapper { position: relative; height: 300px; }
         .chart-skeleton { height: 300px; background: #f1f5f9; border-radius: 8px; animation: chart-pulse 1.5s ease-in-out infinite; }
         @keyframes chart-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-        .graph-nav-link { display: inline-block; padding: 6px 16px; background: #4f46e5; color: white; text-decoration: none; border-radius: 6px; font-size: 14px; margin: 8px 0 16px; }
-        .graph-nav-link:hover { background: #3730a3; }
     </style>
 </head>
 <body>
@@ -96,19 +94,11 @@
                 </div>
             </div>
 
-            <!-- Charts section -->
-            <a id="dataset-graph-link" class="graph-nav-link" href="#">View Co-usage Graph →</a>
-
+            <!-- Trend chart -->
             <div class="chart-container" id="trend-chart-container">
-                <h3>Usage Trends</h3>
+                <h3>Usage Trends (Monthly)</h3>
                 <div class="chart-wrapper"><canvas id="trend-chart"></canvas></div>
                 <div class="chart-skeleton" id="trend-skeleton"></div>
-            </div>
-
-            <div class="chart-container" id="task-chart-container">
-                <h3>Task Distribution</h3>
-                <div class="chart-wrapper"><canvas id="task-chart"></canvas></div>
-                <div class="chart-skeleton" id="task-skeleton"></div>
             </div>
 
             <div class="dataset-usage">
@@ -330,23 +320,8 @@
                     loadingIndicator.style.display = 'none';
                     datasetContent.style.display = 'block';
 
-                    // Set graph link (query param works on both server and GitHub Pages)
-                    var graphLink = document.getElementById('dataset-graph-link');
-                    if (graphLink && datasetName) {
-                        graphLink.href = baseUrl + '/dataset_graph.html?entity=' + encodeURIComponent(datasetName);
-                    }
-
                     // Render trend chart
                     renderTrendChart();
-
-                    // Render task chart from _ai_context
-                    if (data._ai_context && data._ai_context.top_tasks) {
-                        renderTaskChart(data._ai_context.top_tasks);
-                    } else {
-                        document.getElementById('task-skeleton').style.display = 'none';
-                        document.getElementById('task-chart-container').innerHTML =
-                            '<p style="color:#94a3b8;text-align:center">No task data available.</p>';
-                    }
 
                 } catch (error) {
                     console.error('Error loading dataset details:', error);
@@ -410,32 +385,6 @@
                         document.getElementById('trend-chart-container').innerHTML =
                             '<p style="color:#94a3b8;text-align:center">Chart unavailable.</p>';
                     });
-            }
-
-            function renderTaskChart(tasks) {
-                document.getElementById('task-skeleton').style.display = 'none';
-                if (!tasks || tasks.length === 0) return;
-                var colors = ['#4f46e5', '#7c3aed', '#a78bfa', '#c4b5fd', '#e0e7ff'];
-                var ctx = document.getElementById('task-chart').getContext('2d');
-                new Chart(ctx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: tasks.map(function(t) { return t.task; }),
-                        datasets: [{
-                            data: tasks.map(function(t) { return t.count; }),
-                            backgroundColor: colors.slice(0, tasks.length),
-                            borderColor: '#ffffff',
-                            borderWidth: 2
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: { position: 'right', labels: { padding: 16, font: { size: 12 } } }
-                        }
-                    }
-                });
             }
 
             loadDatasetDetails();
