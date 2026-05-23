@@ -55,7 +55,8 @@
     (function() {
         var path = window.location.pathname;
         var parts = path.split('/').filter(Boolean);
-        var datasetEntity = decodeURIComponent(parts[parts.length - 1]);
+        // Last segment is 'graph', second-to-last is the dataset entity
+        var datasetEntity = decodeURIComponent(parts[parts.length - 2]);
 
         document.getElementById('graph-subtitle').textContent = datasetEntity;
 
