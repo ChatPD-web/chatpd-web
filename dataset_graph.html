@@ -53,10 +53,22 @@
 
     <script>
     (function() {
-        var path = window.location.pathname;
-        var parts = path.split('/').filter(Boolean);
-        // Last segment is 'graph', second-to-last is the dataset entity
-        var datasetEntity = decodeURIComponent(parts[parts.length - 2]);
+        // Read dataset from query param (for static hosting like GitHub Pages)
+        // Fall back to path-based extraction (for Flask server route)
+        var params = new URLSearchParams(window.location.search);
+        var datasetEntity = params.get('entity');
+        if (!datasetEntity) {
+            var pathParts = window.location.pathname.split('/').filter(Boolean);
+            // Path: /dataset/{name}/graph → second-to-last = dataset name
+            // Path: /chatpd-web/dataset/{name}/graph → second-to-last = dataset name
+            if (pathParts[pathParts.length - 1] === 'graph') {
+                datasetEntity = pathParts[pathParts.length - 2];
+            }
+        }
+        if (!datasetEntity) {
+            document.getElementById('graph-loading').textContent = 'No dataset specified. Use ?entity=DatasetName';
+            return;
+        }
 
         // Fix nav links for GitHub Pages base path
         function getBaseUrl() {
