@@ -929,7 +929,8 @@ def dataset_trends_api(dataset_entity):
 
 
 @app.route("/dataset/<dataset_entity>/graph")
-def dataset_graph(dataset_entity):
+@app.route("/dataset_graph.html")
+def dataset_graph(dataset_entity=None):
     """Display the dataset co-usage force-directed graph."""
     return render_template("dataset_graph.html")
 

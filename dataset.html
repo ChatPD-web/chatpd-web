@@ -330,15 +330,10 @@
                     loadingIndicator.style.display = 'none';
                     datasetContent.style.display = 'block';
 
-                    // Set graph link (query param for static hosting, path for Flask server)
+                    // Set graph link (query param works on both server and GitHub Pages)
                     var graphLink = document.getElementById('dataset-graph-link');
                     if (graphLink && datasetName) {
-                        var isGithubPages = window.location.hostname.includes('github.io');
-                        if (isGithubPages) {
-                            graphLink.href = '../dataset_graph.html?entity=' + encodeURIComponent(datasetName);
-                        } else {
-                            graphLink.href = './' + encodeURIComponent(datasetName) + '/graph';
-                        }
+                        graphLink.href = baseUrl + '/dataset_graph.html?entity=' + encodeURIComponent(datasetName);
                     }
 
                     // Render trend chart

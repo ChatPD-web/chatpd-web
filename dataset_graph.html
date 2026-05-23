@@ -246,7 +246,13 @@
                 .on('mouseout', function() { tooltip.style('display', 'none'); })
                 .on('click', function(event, d) {
                     if (!d.isCenter) {
-                        var link = baseUrl + '/dataset_graph.html?entity=' + encodeURIComponent(d.id);
+                        var isGhPages = window.location.hostname.includes('github.io');
+                        var link;
+                        if (isGhPages) {
+                            link = baseUrl + '/dataset_graph.html?entity=' + encodeURIComponent(d.id);
+                        } else {
+                            link = baseUrl + '/dataset/' + encodeURIComponent(d.id) + '/graph';
+                        }
                         window.location.href = link;
                     }
                 });
